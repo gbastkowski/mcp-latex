@@ -1,0 +1,30 @@
+{
+  "name": "mcp-latex-server",
+  "version": "0.1.0",
+  "description": "MCP server that renders Markdown to a classic-but-tuned PDF via pandoc + xelatex.",
+  "type": "module",
+  "bin": {
+    "mcp-latex-server": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "assets"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node18 --outfile=dist/index.js",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "prepare": "npm run bundle"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

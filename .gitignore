@@ -1,0 +1,15 @@
+# deps — the MCP server ships as a single bundled file in mcp/dist/,
+# so node_modules is a build-time dependency only and must NOT be committed.
+node_modules/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# OS cruft
+.DS_Store
+
+# NOTE: mcp/dist/ IS committed on purpose — Claude Code runs no build step
+# on plugin install, so the bundled server must already be present.
+
+# stray session helper, not part of the plugin
+continue.sh
