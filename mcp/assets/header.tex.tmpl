@@ -20,6 +20,17 @@
   \renewcommand{\footrulewidth}{0pt}%
 }
 \setlength{\parskip}{0.5em}
+
+% Long monospace identifiers (e.g. http_server_requests_seconds_count) are a
+% single unbreakable \texttt token and overrun narrow table columns. Redefine
+% \texttt so it allows a line break after each `_`, `.`, `/`, `-` or `:` — the
+% content is unchanged, it just wraps instead of colliding with the next cell.
+\let\origtexttt\texttt
+\renewcommand{\texttt}[1]{{%
+  \def\_{\textunderscore\allowbreak}%
+  \origtexttt{#1}%
+}}
+
 % The body fonts (Palatino / Latin Modern) have no glyphs for arrows or emoji,
 % which otherwise render as empty boxes. Map the common ones to text/math
 % equivalents so they at least carry their meaning.
