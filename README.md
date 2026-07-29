@@ -1,8 +1,9 @@
 # mcp-latex
 
 A Claude Code **plugin** that renders Markdown to a nicely-styled PDF
-— classic LaTeX `article` look, tuned: Palatino serif, fancyhdr header/footer
-with "Page N of M", subtle dark-blue links, A4 — via **pandoc + xelatex**.
+— classic LaTeX `article` look, tuned: Palatino serif, a fancyhdr running
+header with an `N/M` page marker, subtle dark-blue links, A4 — via
+**pandoc + xelatex**.
 
 It bundles two things:
 
@@ -48,6 +49,44 @@ mcp/                           TypeScript MCP server
   defaults are dropped and xelatex falls back to Latin Modern (pass an explicit
   `main_font`/`mono_font` only if you know it exists in the image).
 - **auto** — native if available, else docker.
+
+## How it works
+
+The MCP server is a single stdio process exposing one tool,
+`render_markdown_to_pdf`. It has no network access and no state — each call is
+self-contained. It is built on `@modelcontextprotocol/sdk`: an `McpServer`
+wired to a `StdioServerTransport`, with the tool registered under a `zod`
+schema so arguments are validated before the handler runs.
+
+A render request runs through seven steps:
+
+1. **Resolve input** — either a `markdown_path` or inline `markdown`. Inline
+   source is written to a temp file first.
+2. **Pick engine** — `auto` uses native when `pandoc` and `xelatex` are on
+   PATH, else docker; `native`/`docker` force one.
+3. **Build `header.tex`** — the template `mcp/assets/header.tex.tmpl` with three
+   placeholders substituted: `__TITLE__`, `__HEADER_RIGHT__`, `__LINK_COLOR__`.
+4. **Build pandoc args** — `--pdf-engine=xelatex`, the include-header, TOC
+   (`--toc --toc-depth=N`), numbered sections, and `-V` variables for fonts,
+   paper size, margins and link colours.
+5. **Run** — native spawns `pandoc` directly; docker stages the input and
+   header into a scratch dir, mounts it at `/data`, runs the container with
+   `--platform linux/amd64`, then copies `/data/out.pdf` back to the host.
+6. **Open (optional)** — `open_in` runs `open -a <App>` on the result.
+7. **Return** — the output path and engine used, or the captured stderr plus a
+   tlmgr hint on failure.
+
+Notable design points:
+
+- **One engine abstraction** — a single `buildPandocArgs()` feeds both engines;
+  only the paths differ (host absolute paths vs `/data/...` in the container).
+- **`header.tex.tmpl` is the styling brain** — fancyhdr furniture, a
+  `newunicodechar` glyph map (arrows, emoji), and a breakable `\texttt` so long
+  identifiers wrap in table cells. The server only substitutes placeholders.
+- **Scratch dir** — `mkdtemp` per call, removed in a `finally`; docker needs the
+  input and header co-located under one mount, so they are staged there.
+- **Packaging** — the server is esbuild-bundled to a single `dist/index.js`
+  with no runtime `node_modules`, so it loads with no install step.
 
 ## Prerequisites (native, macOS)
 
