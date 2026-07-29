@@ -34,7 +34,7 @@ mcp/                           TypeScript MCP server
 | `main_font` / `mono_font` | Palatino / Menlo | |
 | `papersize` / `fontsize` / `margin` | a4 / 11pt / 2.5cm | |
 | `link_color` | `1F4E79` | hex, no `#` |
-| `toc` / `number_sections` | true / true | |
+| `toc` / `number_sections` | auto / auto | `auto`\|`true`\|`false`; auto = on only with ≥3 headings |
 | `engine` | `auto` | `auto` \| `native` \| `docker` |
 | `open_in` | `none` | `Skim` \| `Preview` \| `none` |
 

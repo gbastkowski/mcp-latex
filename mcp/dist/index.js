@@ -21167,6 +21167,25 @@ async function dockerAvailable() {
   const res = await run("docker", ["info"]);
   return res.code === 0;
 }
+var SIMPLE_DOC_MAX_HEADINGS = 3;
+function countHeadings(md) {
+  let count = 0;
+  let inFence = false;
+  for (const line of md.split(/\r?\n/)) {
+    const fence = line.match(/^\s*(```+|~~~+)/);
+    if (fence) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && /^#{1,6}\s+\S/.test(line)) count++;
+  }
+  return count;
+}
+function resolveAuto(v, headings) {
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return headings >= SIMPLE_DOC_MAX_HEADINGS;
+}
 function texEscape(s) {
   return s.replace(/([#$%&_{}])/g, "\\$1").replace(/~/g, "\\textasciitilde{}");
 }
@@ -21223,9 +21242,13 @@ server.tool(
     fontsize: external_exports.string().default("11pt"),
     margin: external_exports.string().default("2.5cm").describe("Page margin, e.g. '2.5cm'."),
     link_color: external_exports.string().default("1F4E79").describe("Hex link color (no leading #)."),
-    toc: external_exports.boolean().default(true).describe("Include a table of contents."),
+    toc: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
+      "Table of contents. 'auto' includes one only when the document has several headings; 'true'/'false' force it."
+    ),
     toc_depth: external_exports.number().int().min(1).max(6).default(2).describe("Deepest heading level shown in the TOC."),
-    number_sections: external_exports.boolean().default(true),
+    number_sections: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
+      "Number the sections. 'auto' numbers only when the document has several headings; 'true'/'false' force it."
+    ),
     engine: external_exports.enum(["auto", "native", "docker"]).default("auto").describe(
       "Render engine. 'auto' uses native pandoc+xelatex when present (keeps system fonts and open_in), else Docker. 'native' or 'docker' force one."
     ),
@@ -21295,6 +21318,10 @@ server.tool(
       const header = tmpl.replace(/__TITLE__/g, texEscape(title)).replace(/__HEADER_RIGHT__/g, texEscape(header_right)).replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
       const headerFile = join(scratch, "header.tex");
       await writeFile(headerFile, header, "utf8");
+      const source = markdown ?? await readFile(inputFile, "utf8").catch(() => "");
+      const headingCount = countHeadings(source);
+      const wantToc = resolveAuto(toc, headingCount);
+      const wantNumbers = resolveAuto(number_sections, headingCount);
       let res;
       if (chosen === "native") {
         const pandocArgs = buildPandocArgs({
@@ -21306,9 +21333,9 @@ server.tool(
           margin,
           mainFont,
           monoFont,
-          toc,
+          toc: wantToc,
           tocDepth: toc_depth,
-          numberSections: number_sections
+          numberSections: wantNumbers
         });
         res = await run("pandoc", pandocArgs, dirname(inputFile));
       } else {
@@ -21323,9 +21350,9 @@ server.tool(
           margin,
           mainFont,
           monoFont,
-          toc,
+          toc: wantToc,
           tocDepth: toc_depth,
-          numberSections: number_sections
+          numberSections: wantNumbers
         });
         const dockerArgs = [
           "run",

@@ -87,6 +87,33 @@ async function dockerAvailable(): Promise<boolean> {
   return res.code === 0;
 }
 
+// In 'auto' mode a document with fewer than this many headings is treated as
+// "simple": no table of contents and no section numbering.
+const SIMPLE_DOC_MAX_HEADINGS = 3;
+
+// Count ATX headings (`#`..`######`) in Markdown, ignoring anything inside
+// fenced code blocks so a `# comment` in a code sample is not mistaken for one.
+function countHeadings(md: string): number {
+  let count = 0;
+  let inFence = false;
+  for (const line of md.split(/\r?\n/)) {
+    const fence = line.match(/^\s*(```+|~~~+)/);
+    if (fence) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && /^#{1,6}\s+\S/.test(line)) count++;
+  }
+  return count;
+}
+
+// Resolve a tri-state ('auto' | 'true' | 'false') against the heading count.
+function resolveAuto(v: "auto" | "true" | "false", headings: number): boolean {
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return headings >= SIMPLE_DOC_MAX_HEADINGS;
+}
+
 // LaTeX-escape a value that lands in a running-header text field.
 function texEscape(s: string): string {
   return s.replace(/([#$%&_{}])/g, "\\$1").replace(/~/g, "\\textasciitilde{}");
@@ -197,7 +224,13 @@ server.tool(
       .string()
       .default("1F4E79")
       .describe("Hex link color (no leading #)."),
-    toc: z.boolean().default(true).describe("Include a table of contents."),
+    toc: z
+      .enum(["auto", "true", "false"])
+      .default("auto")
+      .describe(
+        "Table of contents. 'auto' includes one only when the document has " +
+          "several headings; 'true'/'false' force it.",
+      ),
     toc_depth: z
       .number()
       .int()
@@ -205,7 +238,13 @@ server.tool(
       .max(6)
       .default(2)
       .describe("Deepest heading level shown in the TOC."),
-    number_sections: z.boolean().default(true),
+    number_sections: z
+      .enum(["auto", "true", "false"])
+      .default("auto")
+      .describe(
+        "Number the sections. 'auto' numbers only when the document has " +
+          "several headings; 'true'/'false' force it.",
+      ),
     engine: z
       .enum(["auto", "native", "docker"])
       .default("auto")
@@ -305,6 +344,15 @@ server.tool(
       const headerFile = join(scratch, "header.tex");
       await writeFile(headerFile, header, "utf8");
 
+      // Resolve the tri-state toc / number_sections. In 'auto', a document is
+      // "simple" (no TOC, no numbering) when it has fewer than this many
+      // headings — a short doc reads better plain.
+      const source =
+        markdown ?? (await readFile(inputFile, "utf8").catch(() => ""));
+      const headingCount = countHeadings(source);
+      const wantToc = resolveAuto(toc, headingCount);
+      const wantNumbers = resolveAuto(number_sections, headingCount);
+
       let res: { code: number; stdout: string; stderr: string };
 
       if (chosen === "native") {
@@ -317,9 +365,9 @@ server.tool(
           margin,
           mainFont,
           monoFont,
-          toc,
+          toc: wantToc,
           tocDepth: toc_depth,
-          numberSections: number_sections,
+          numberSections: wantNumbers,
         });
         res = await run("pandoc", pandocArgs, dirname(inputFile));
       } else {
@@ -336,9 +384,9 @@ server.tool(
           margin,
           mainFont,
           monoFont,
-          toc,
+          toc: wantToc,
           tocDepth: toc_depth,
-          numberSections: number_sections,
+          numberSections: wantNumbers,
         });
         // The custom image bakes in the header's LaTeX packages, so the
         // upstream `pandoc` entrypoint is used directly.

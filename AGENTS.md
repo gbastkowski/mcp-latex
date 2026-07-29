@@ -55,6 +55,8 @@ Convert a page to PNG for visual review: `pdftoppm -png -r 110 -f N -l N in.pdf 
 - Long unbreakable `\texttt{...}` tokens overran table columns; `\texttt` is
   redefined in the header to break after underscores.
 - TOC depth is `--toc-depth=2` by default (tool arg `toc_depth`).
+- `toc` and `number_sections` are tri-state (`auto`|`true`|`false`, default
+  `auto`): a doc with fewer than 3 headings renders plain (no TOC, no numbers).
 
 ## Config wiring
 
