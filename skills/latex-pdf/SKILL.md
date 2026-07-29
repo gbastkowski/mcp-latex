@@ -31,15 +31,14 @@ link color `#1F4E79`, TOC + numbered sections on.
 
 - `auto` (default): use native `pandoc` + `xelatex` if both are on PATH
   (keeps macOS system fonts and `open_in`); otherwise fall back to Docker.
-- `native`: force native. Fast, uses your BasicTeX/MacTeX.
-- `docker`: force the `pandoc/latex` image. Reproducible/portable, no local
-  TeX needed. The macOS-only default fonts (Palatino/Menlo) are auto-swapped
-  to the container's TeX Gyre Pagella / DejaVu Sans Mono.
+- `native`: force native. Fast, uses your BasicTeX/MacTeX and system fonts.
+- `docker`: force the custom image `ghcr.io/gbastkowski/mcp-latex-tex`
+  (`docker/Dockerfile`) — `pandoc/latex` with the header's LaTeX packages baked
+  in. Reproducible/portable, no local TeX. amd64-only (emulated on Apple
+  Silicon). It has no system fonts, so the Palatino/Menlo defaults are dropped
+  and xelatex uses Latin Modern.
 
-`use_host_fonts: true` (Docker only) mounts the macOS font directories
-read-only into the container (`OSFONTDIR`), so the *real* Palatino/Menlo are
-used instead of the fallbacks. `open_in` works with either engine because the
-PDF lands on the host.
+`open_in` works with either engine because the PDF lands on the host.
 
 ## Prerequisites (macOS, one-time)
 

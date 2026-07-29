@@ -35,16 +35,18 @@ mcp/                           TypeScript MCP server
 | `link_color` | `1F4E79` | hex, no `#` |
 | `toc` / `number_sections` | true / true | |
 | `engine` | `auto` | `auto` \| `native` \| `docker` |
-| `use_host_fonts` | false | Docker: mount macOS fonts read-only |
 | `open_in` | `none` | `Skim` \| `Preview` \| `none` |
 
 ### Engines
 
-- **native** — local `pandoc` + `xelatex`. Fast, macOS system fonts, can open
-  in Skim. Requires BasicTeX/MacTeX + pandoc.
-- **docker** — `pandoc/latex` image. Reproducible/portable, no local TeX.
-  Palatino/Menlo defaults are swapped to TeX Gyre Pagella / DejaVu Sans Mono,
-  unless `use_host_fonts: true` mounts the real macOS fonts in.
+- **native** — local `pandoc` + `xelatex`. Fast, uses the macOS system fonts
+  (Palatino/Menlo), can open in Skim. Requires BasicTeX/MacTeX + pandoc.
+- **docker** — the custom image `ghcr.io/gbastkowski/mcp-latex-tex`
+  (`docker/Dockerfile`): `pandoc/latex` + the header's LaTeX packages baked in.
+  Reproducible/portable, no local TeX. amd64-only, so on Apple Silicon it runs
+  under emulation. The image ships no system fonts, so the Palatino/Menlo
+  defaults are dropped and xelatex falls back to Latin Modern (pass an explicit
+  `main_font`/`mono_font` only if you know it exists in the image).
 - **auto** — native if available, else docker.
 
 ## Prerequisites (native, macOS)
