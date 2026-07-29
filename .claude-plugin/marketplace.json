@@ -1,0 +1,13 @@
+{
+  "name": "mcp-latex",
+  "owner": {
+    "name": "Gunnar Bastkowski"
+  },
+  "plugins": [
+    {
+      "name": "mcp-latex",
+      "source": "./",
+      "description": "Render Markdown to a classic-but-tuned Palatino PDF via pandoc + xelatex. Bundles a skill and an MCP server (native or Docker engine)."
+    }
+  ]
+}
