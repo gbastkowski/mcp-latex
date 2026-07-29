@@ -21196,7 +21196,7 @@ function buildPandocArgs(opts) {
   ];
   if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
   if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
-  if (opts.toc) a.push("--toc");
+  if (opts.toc) a.push("--toc", `--toc-depth=${opts.tocDepth}`);
   if (opts.numberSections) a.push("--number-sections");
   return a;
 }
@@ -21224,6 +21224,7 @@ server.tool(
     margin: external_exports.string().default("2.5cm").describe("Page margin, e.g. '2.5cm'."),
     link_color: external_exports.string().default("1F4E79").describe("Hex link color (no leading #)."),
     toc: external_exports.boolean().default(true).describe("Include a table of contents."),
+    toc_depth: external_exports.number().int().min(1).max(6).default(2).describe("Deepest heading level shown in the TOC."),
     number_sections: external_exports.boolean().default(true),
     engine: external_exports.enum(["auto", "native", "docker"]).default("auto").describe(
       "Render engine. 'auto' uses native pandoc+xelatex when present (keeps system fonts and open_in), else Docker. 'native' or 'docker' force one."
@@ -21246,6 +21247,7 @@ server.tool(
       margin,
       link_color,
       toc,
+      toc_depth,
       number_sections,
       engine,
       open_in
@@ -21305,6 +21307,7 @@ server.tool(
           mainFont,
           monoFont,
           toc,
+          tocDepth: toc_depth,
           numberSections: number_sections
         });
         res = await run("pandoc", pandocArgs, dirname(inputFile));
@@ -21321,6 +21324,7 @@ server.tool(
           mainFont,
           monoFont,
           toc,
+          tocDepth: toc_depth,
           numberSections: number_sections
         });
         const dockerArgs = [

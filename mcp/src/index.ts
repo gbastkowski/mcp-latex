@@ -104,6 +104,7 @@ function buildPandocArgs(opts: {
   mainFont: string;
   monoFont: string;
   toc: boolean;
+  tocDepth: number;
   numberSections: boolean;
 }): string[] {
   const a = [
@@ -134,7 +135,7 @@ function buildPandocArgs(opts: {
   // since it ships no fontconfig system fonts.
   if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
   if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
-  if (opts.toc) a.push("--toc");
+  if (opts.toc) a.push("--toc", `--toc-depth=${opts.tocDepth}`);
   if (opts.numberSections) a.push("--number-sections");
   return a;
 }
@@ -197,6 +198,13 @@ server.tool(
       .default("1F4E79")
       .describe("Hex link color (no leading #)."),
     toc: z.boolean().default(true).describe("Include a table of contents."),
+    toc_depth: z
+      .number()
+      .int()
+      .min(1)
+      .max(6)
+      .default(2)
+      .describe("Deepest heading level shown in the TOC."),
     number_sections: z.boolean().default(true),
     engine: z
       .enum(["auto", "native", "docker"])
@@ -228,6 +236,7 @@ server.tool(
       margin,
       link_color,
       toc,
+      toc_depth,
       number_sections,
       engine,
       open_in,
@@ -309,6 +318,7 @@ server.tool(
           mainFont,
           monoFont,
           toc,
+          tocDepth: toc_depth,
           numberSections: number_sections,
         });
         res = await run("pandoc", pandocArgs, dirname(inputFile));
@@ -327,6 +337,7 @@ server.tool(
           mainFont,
           monoFont,
           toc,
+          tocDepth: toc_depth,
           numberSections: number_sections,
         });
         // The custom image bakes in the header's LaTeX packages, so the
