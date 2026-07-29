@@ -21200,7 +21200,7 @@ function buildPandocArgs(opts) {
   if (opts.numberSections) a.push("--number-sections");
   return a;
 }
-var TLMGR_HINT = "Hint: BasicTeX is minimal \u2014 if a .sty is missing, run `sudo tlmgr install <pkg>` (fancyhdr lastpage newunicodechar xcolor).";
+var TLMGR_HINT = "Hint: BasicTeX is minimal \u2014 if a .sty is missing, run `sudo tlmgr install <pkg>` (fancyhdr lastpage newunicodechar soul xcolor).";
 var server = new McpServer({ name: "mcp-latex", version: "0.1.0" });
 server.tool(
   "render_markdown_to_pdf",

@@ -18,6 +18,26 @@
   \renewcommand{\footrulewidth}{0.2pt}%
 }
 \setlength{\parskip}{0.5em}
-% Palatino has no U+2192 glyph; map the arrow to a math arrow.
+% The body fonts (Palatino / Latin Modern) have no glyphs for arrows or emoji,
+% which otherwise render as empty boxes. Map the common ones to text/math
+% equivalents so they at least carry their meaning.
 \usepackage{newunicodechar}
+% Arrows.
 \newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{←}{\ensuremath{\leftarrow}}
+\newunicodechar{↔}{\ensuremath{\leftrightarrow}}
+\newunicodechar{⇒}{\ensuremath{\Rightarrow}}
+\newunicodechar{⇐}{\ensuremath{\Leftarrow}}
+% Status emoji → coloured symbols.
+\newunicodechar{✅}{\textcolor[HTML]{2E7D32}{\ensuremath{\checkmark}}}
+\newunicodechar{✔}{\textcolor[HTML]{2E7D32}{\ensuremath{\checkmark}}}
+\newunicodechar{☑}{\textcolor[HTML]{2E7D32}{\ensuremath{\checkmark}}}
+\newunicodechar{❌}{\textcolor[HTML]{C62828}{\ensuremath{\times}}}
+\newunicodechar{✖}{\textcolor[HTML]{C62828}{\ensuremath{\times}}}
+\newunicodechar{✗}{\textcolor[HTML]{C62828}{\ensuremath{\times}}}
+\newunicodechar{⚠}{\textbf{[!]}}
+\newunicodechar{ℹ}{\textbf{[i]}}
+% Bullets / misc.
+\newunicodechar{•}{\ensuremath{\bullet}}
+\newunicodechar{★}{\ensuremath{\star}}
+\newunicodechar{☆}{\ensuremath{\star}}

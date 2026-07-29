@@ -56,7 +56,7 @@ mcp/                           TypeScript MCP server
 brew install pandoc
 # BasicTeX is minimal — install the packages the header needs:
 sudo tlmgr update --self
-sudo tlmgr install fancyhdr lastpage newunicodechar xcolor
+sudo tlmgr install fancyhdr lastpage newunicodechar soul xcolor
 ```
 
 If a render errors with `File 'foo.sty' not found`, run

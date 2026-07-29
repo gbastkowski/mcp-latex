@@ -47,7 +47,7 @@ link color `#1F4E79`, TOC + numbered sections on.
 - BasicTeX is minimal. Install the required packages:
   ```sh
   sudo tlmgr update --self
-  sudo tlmgr install fancyhdr lastpage newunicodechar xcolor
+  sudo tlmgr install fancyhdr lastpage newunicodechar soul xcolor
   ```
   If a render errors with `File 'foo.sty' not found`, run
   `sudo tlmgr install foo` and retry — BasicTeX pulls missing `.sty` one at a time.

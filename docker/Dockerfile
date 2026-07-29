@@ -11,5 +11,5 @@ FROM pandoc/latex:latest
 
 RUN tlmgr option repository https://mirror.ctan.org/systems/texlive/tlnet \
     && tlmgr update --self \
-    && tlmgr install fancyhdr lastpage newunicodechar xcolor \
+    && tlmgr install fancyhdr lastpage newunicodechar soul xcolor \
     && mktexlsr

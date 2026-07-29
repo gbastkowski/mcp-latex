@@ -141,7 +141,7 @@ function buildPandocArgs(opts: {
 
 const TLMGR_HINT =
   "Hint: BasicTeX is minimal — if a .sty is missing, run " +
-  "`sudo tlmgr install <pkg>` (fancyhdr lastpage newunicodechar xcolor).";
+  "`sudo tlmgr install <pkg>` (fancyhdr lastpage newunicodechar soul xcolor).";
 
 const server = new McpServer({ name: "mcp-latex", version: "0.1.0" });
 
