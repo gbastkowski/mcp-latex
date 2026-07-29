@@ -21123,9 +21123,8 @@ import { join, dirname, resolve, basename, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 var __dirname = dirname(fileURLToPath(import.meta.url));
 var TEMPLATE_PATH = join(__dirname, "..", "assets", "header.tex.tmpl");
-var DOCKER_IMAGE = "pandoc/latex:latest";
-var DOCKER_MAIN_FONT = "TeX Gyre Pagella";
-var DOCKER_MONO_FONT = "DejaVu Sans Mono";
+var DOCKER_IMAGE = "ghcr.io/gbastkowski/mcp-latex-tex:latest";
+var DOCKER_PLATFORM = "linux/amd64";
 var MAC_DEFAULT_MAIN = "Palatino";
 var MAC_DEFAULT_MONO = "Menlo";
 var TEXBIN = "/Library/TeX/texbin";
@@ -21187,10 +21186,6 @@ function buildPandocArgs(opts) {
     "-V",
     `geometry:margin=${opts.margin}`,
     "-V",
-    `mainfont=${opts.mainFont}`,
-    "-V",
-    `monofont=${opts.monoFont}`,
-    "-V",
     "colorlinks=true",
     "-V",
     "linkcolor=Blue",
@@ -21199,6 +21194,8 @@ function buildPandocArgs(opts) {
     "-V",
     "toccolor=black"
   ];
+  if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
+  if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
   if (opts.toc) a.push("--toc");
   if (opts.numberSections) a.push("--number-sections");
   return a;
@@ -21233,9 +21230,6 @@ server.tool(
     ),
     open_in: external_exports.enum(["Skim", "Preview", "none"]).default("none").describe(
       "Open the rendered PDF in this macOS app on success, or 'none'. Works with either engine since the PDF lands on the host."
-    ),
-    use_host_fonts: external_exports.boolean().default(false).describe(
-      "Docker engine only: mount the macOS font directories read-only into the container (via OSFONTDIR) so the exact system fonts (Palatino, Menlo, ...) are used instead of the container's TeX Gyre fallbacks. Ignored for the native engine."
     )
   },
   async (args) => {
@@ -21254,8 +21248,7 @@ server.tool(
       toc,
       number_sections,
       engine,
-      open_in,
-      use_host_fonts
+      open_in
     } = args;
     if (!markdown_path && markdown === void 0) {
       return errText("Provide either `markdown_path` or `markdown`.");
@@ -21276,9 +21269,8 @@ server.tool(
         );
       }
     }
-    const swapFonts = chosen === "docker" && !use_host_fonts;
-    const mainFont = swapFonts && main_font === MAC_DEFAULT_MAIN ? DOCKER_MAIN_FONT : main_font;
-    const monoFont = swapFonts && mono_font === MAC_DEFAULT_MONO ? DOCKER_MONO_FONT : mono_font;
+    const mainFont = chosen === "docker" && main_font === MAC_DEFAULT_MAIN ? "" : main_font;
+    const monoFont = chosen === "docker" && mono_font === MAC_DEFAULT_MONO ? "" : mono_font;
     const scratch = await mkdtemp(join(tmpdir(), "mcp-latex-"));
     try {
       let inputFile;
@@ -21331,23 +21323,16 @@ server.tool(
           toc,
           numberSections: number_sections
         });
-        const dockerArgs = ["run", "--rm", "-v", `${scratch}:/data`];
-        if (use_host_fonts) {
-          const fontDirs = [
-            ["/System/Library/Fonts", "/hostfonts/system"],
-            ["/Library/Fonts", "/hostfonts/library"],
-            [join(process.env.HOME ?? "", "Library/Fonts"), "/hostfonts/user"]
-          ];
-          const osfontdir = [];
-          for (const [host, mount] of fontDirs) {
-            if (host && await exists(host)) {
-              dockerArgs.push("-v", `${host}:${mount}:ro`);
-              osfontdir.push(mount);
-            }
-          }
-          dockerArgs.push("-e", `OSFONTDIR=${osfontdir.join(":")}`);
-        }
-        dockerArgs.push(DOCKER_IMAGE, ...pandocArgs);
+        const dockerArgs = [
+          "run",
+          "--rm",
+          "--platform",
+          DOCKER_PLATFORM,
+          "-v",
+          `${scratch}:/data`,
+          DOCKER_IMAGE,
+          ...pandocArgs
+        ];
         res = await run("docker", dockerArgs);
         if (res.code === 0) {
           await copyFile(join(scratch, "out.pdf"), outFile);

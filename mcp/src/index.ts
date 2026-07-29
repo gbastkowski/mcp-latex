@@ -20,12 +20,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // assets live next to package root: mcp/assets/, dist/ is a sibling.
 const TEMPLATE_PATH = join(__dirname, "..", "assets", "header.tex.tmpl");
 
-// Docker image with pandoc + a working TeX stack.
-const DOCKER_IMAGE = "pandoc/latex:latest";
-// Fonts that exist in the Docker image, used when the caller left the
-// macOS-only defaults in place. TeX Gyre Pagella ≈ Palatino.
-const DOCKER_MAIN_FONT = "TeX Gyre Pagella";
-const DOCKER_MONO_FONT = "DejaVu Sans Mono";
+// Docker image with pandoc + a working TeX stack. Only published for amd64,
+// so we pin the platform — on Apple Silicon this runs under emulation (slower
+// but works) rather than failing with a missing-manifest error.
+// Custom image (docker/Dockerfile): pandoc/latex + the header's LaTeX packages
+// baked in. Only published for amd64, so we pin the platform — on Apple Silicon
+// this runs under emulation.
+const DOCKER_IMAGE = "ghcr.io/gbastkowski/mcp-latex-tex:latest";
+const DOCKER_PLATFORM = "linux/amd64";
+// The Docker image ships NO fontconfig system fonts, so named fonts like
+// Palatino/Menlo cannot resolve there. Under Docker we drop the font vars and
+// let xelatex fall back to its built-in Latin Modern. The macOS defaults below
+// are only used by the native engine.
 const MAC_DEFAULT_MAIN = "Palatino";
 const MAC_DEFAULT_MONO = "Menlo";
 
@@ -115,10 +121,6 @@ function buildPandocArgs(opts: {
     "-V",
     `geometry:margin=${opts.margin}`,
     "-V",
-    `mainfont=${opts.mainFont}`,
-    "-V",
-    `monofont=${opts.monoFont}`,
-    "-V",
     "colorlinks=true",
     "-V",
     "linkcolor=Blue",
@@ -127,6 +129,11 @@ function buildPandocArgs(opts: {
     "-V",
     "toccolor=black",
   ];
+  // Fonts are optional: an empty value means "let xelatex use its default"
+  // (Latin Modern), which is the only reliable choice in the Docker image
+  // since it ships no fontconfig system fonts.
+  if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
+  if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
   if (opts.toc) a.push("--toc");
   if (opts.numberSections) a.push("--number-sections");
   return a;
@@ -206,15 +213,6 @@ server.tool(
         "Open the rendered PDF in this macOS app on success, or 'none'. " +
           "Works with either engine since the PDF lands on the host.",
       ),
-    use_host_fonts: z
-      .boolean()
-      .default(false)
-      .describe(
-        "Docker engine only: mount the macOS font directories read-only into " +
-          "the container (via OSFONTDIR) so the exact system fonts " +
-          "(Palatino, Menlo, ...) are used instead of the container's " +
-          "TeX Gyre fallbacks. Ignored for the native engine.",
-      ),
   },
   async (args) => {
     const {
@@ -233,7 +231,6 @@ server.tool(
       number_sections,
       engine,
       open_in,
-      use_host_fonts,
     } = args;
 
     if (!markdown_path && markdown === undefined) {
@@ -259,15 +256,14 @@ server.tool(
       }
     }
 
-    // Fonts: under Docker, swap the macOS-only defaults for the container's
-    // TeX Gyre fallbacks — UNLESS we're mounting the host fonts, in which case
-    // the real Palatino/Menlo are available. Explicit caller fonts are always
-    // honored.
-    const swapFonts = chosen === "docker" && !use_host_fonts;
+    // Fonts: the native engine uses the requested macOS fonts. The Docker
+    // image has no system fonts, so drop the macOS defaults there and let
+    // xelatex fall back to Latin Modern. An explicit non-default font is still
+    // passed through (the caller is then responsible for it existing).
     const mainFont =
-      swapFonts && main_font === MAC_DEFAULT_MAIN ? DOCKER_MAIN_FONT : main_font;
+      chosen === "docker" && main_font === MAC_DEFAULT_MAIN ? "" : main_font;
     const monoFont =
-      swapFonts && mono_font === MAC_DEFAULT_MONO ? DOCKER_MONO_FONT : mono_font;
+      chosen === "docker" && mono_font === MAC_DEFAULT_MONO ? "" : mono_font;
 
     const scratch = await mkdtemp(join(tmpdir(), "mcp-latex-"));
     try {
@@ -333,25 +329,18 @@ server.tool(
           toc,
           numberSections: number_sections,
         });
-        const dockerArgs = ["run", "--rm", "-v", `${scratch}:/data`];
-        if (use_host_fonts) {
-          // Mount the macOS font dirs read-only and point fontconfig (via
-          // xelatex's OSFONTDIR) at them so the real system fonts resolve.
-          const fontDirs: Array<[string, string]> = [
-            ["/System/Library/Fonts", "/hostfonts/system"],
-            ["/Library/Fonts", "/hostfonts/library"],
-            [join(process.env.HOME ?? "", "Library/Fonts"), "/hostfonts/user"],
-          ];
-          const osfontdir: string[] = [];
-          for (const [host, mount] of fontDirs) {
-            if (host && (await exists(host))) {
-              dockerArgs.push("-v", `${host}:${mount}:ro`);
-              osfontdir.push(mount);
-            }
-          }
-          dockerArgs.push("-e", `OSFONTDIR=${osfontdir.join(":")}`);
-        }
-        dockerArgs.push(DOCKER_IMAGE, ...pandocArgs);
+        // The custom image bakes in the header's LaTeX packages, so the
+        // upstream `pandoc` entrypoint is used directly.
+        const dockerArgs = [
+          "run",
+          "--rm",
+          "--platform",
+          DOCKER_PLATFORM,
+          "-v",
+          `${scratch}:/data`,
+          DOCKER_IMAGE,
+          ...pandocArgs,
+        ];
         res = await run("docker", dockerArgs);
         if (res.code === 0) {
           await copyFile(join(scratch, "out.pdf"), outFile);
