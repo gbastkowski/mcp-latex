@@ -1,6 +1,6 @@
 {
   "name": "mcp-latex",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Render Markdown to nicely-styled PDF via pandoc + xelatex (classic-but-tuned Palatino report). Bundles a skill and an MCP server.",
   "author": {
     "name": "Gunnar Bastkowski"

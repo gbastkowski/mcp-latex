@@ -21220,7 +21220,7 @@ function buildPandocArgs(opts) {
   return a;
 }
 var TLMGR_HINT = "Hint: BasicTeX is minimal \u2014 if a .sty is missing, run `sudo tlmgr install <pkg>` (fancyhdr lastpage newunicodechar soul xcolor).";
-var server = new McpServer({ name: "mcp-latex", version: "0.1.0" });
+var server = new McpServer({ name: "mcp-latex", version: "1.0.0" });
 server.tool(
   "render_markdown_to_pdf",
   "Render a Markdown document to a nicely-styled PDF using pandoc + xelatex (classic-but-tuned Palatino report: fancyhdr header/footer with 'Page N of M', subtle dark-blue links, A4, TOC, numbered sections). Runs natively (macOS fonts, can open in Skim) or in a Docker image (portable/reproducible).",

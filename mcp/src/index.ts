@@ -171,7 +171,7 @@ const TLMGR_HINT =
   "Hint: BasicTeX is minimal — if a .sty is missing, run " +
   "`sudo tlmgr install <pkg>` (fancyhdr lastpage newunicodechar soul xcolor).";
 
-const server = new McpServer({ name: "mcp-latex", version: "0.1.0" });
+const server = new McpServer({ name: "mcp-latex", version: "1.0.0" });
 
 server.tool(
   "render_markdown_to_pdf",
