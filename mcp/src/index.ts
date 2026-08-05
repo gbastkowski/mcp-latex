@@ -31,9 +31,12 @@ const DOCKER_PLATFORM = "linux/amd64";
 // The Docker image ships NO fontconfig system fonts, so named fonts like
 // Palatino/Menlo cannot resolve there. Under Docker we drop the font vars and
 // let xelatex fall back to its built-in Latin Modern. The macOS defaults below
-// are only used by the native engine.
+// are only used by the native engine; on Linux they are swapped for the free
+// equivalents below (apt: fonts-texgyre fonts-dejavu).
 const MAC_DEFAULT_MAIN = "Palatino";
 const MAC_DEFAULT_MONO = "Menlo";
+const LINUX_DEFAULT_MAIN = "TeX Gyre Pagella";
+const LINUX_DEFAULT_MONO = "DejaVu Sans Mono";
 
 // Prepend the standard macOS TeX bin dir so xelatex is found even when the
 // MCP host launches us with a minimal PATH.
@@ -208,14 +211,16 @@ server.tool(
       .default(MAC_DEFAULT_MAIN)
       .describe(
         "Serif body font. The macOS default 'Palatino' is auto-swapped to " +
-          "'TeX Gyre Pagella' under the docker engine.",
+          "'TeX Gyre Pagella' on Linux, and dropped for Latin Modern under " +
+          "the docker engine.",
       ),
     mono_font: z
       .string()
       .default(MAC_DEFAULT_MONO)
       .describe(
         "Monospace font. The macOS default 'Menlo' is auto-swapped to " +
-          "'DejaVu Sans Mono' under the docker engine.",
+          "'DejaVu Sans Mono' on Linux, and dropped for Latin Modern under " +
+          "the docker engine.",
       ),
     papersize: z.string().default("a4"),
     fontsize: z.string().default("11pt"),
@@ -304,14 +309,22 @@ server.tool(
       }
     }
 
-    // Fonts: the native engine uses the requested macOS fonts. The Docker
-    // image has no system fonts, so drop the macOS defaults there and let
-    // xelatex fall back to Latin Modern. An explicit non-default font is still
-    // passed through (the caller is then responsible for it existing).
-    const mainFont =
-      chosen === "docker" && main_font === MAC_DEFAULT_MAIN ? "" : main_font;
-    const monoFont =
-      chosen === "docker" && mono_font === MAC_DEFAULT_MONO ? "" : mono_font;
+    // Fonts: the native engine uses the requested fonts. The Docker image has
+    // no system fonts, so the macOS defaults are dropped there and xelatex
+    // falls back to Latin Modern. On Linux the macOS defaults don't exist
+    // either, so they are swapped for the free metric-compatible equivalents.
+    // An explicit non-default font is always passed through (the caller is
+    // then responsible for it existing).
+    let mainFont = main_font;
+    let monoFont = mono_font;
+    if (main_font === MAC_DEFAULT_MAIN) {
+      if (chosen === "docker") mainFont = "";
+      else if (process.platform === "linux") mainFont = LINUX_DEFAULT_MAIN;
+    }
+    if (mono_font === MAC_DEFAULT_MONO) {
+      if (chosen === "docker") monoFont = "";
+      else if (process.platform === "linux") monoFont = LINUX_DEFAULT_MONO;
+    }
 
     const scratch = await mkdtemp(join(tmpdir(), "mcp-latex-"));
     try {
