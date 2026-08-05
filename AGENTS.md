@@ -23,10 +23,17 @@ server.
 
 The MCP server itself is host-agnostic: plain stdio, no Claude APIs, and it
 resolves `assets/header.tex.tmpl` relative to `import.meta.url`, so any
-launcher works. Only the **launch path** is Claude-specific — other hosts have
-no `${CLAUDE_PLUGIN_ROOT}`, so their configs need an absolute path. The
-templates carry a `__MCP_LATEX_ROOT__` placeholder that `hosts/install.sh`
-substitutes with the repo path.
+launcher works. Other hosts have no `${CLAUDE_PLUGIN_ROOT}`, so they launch it
+via `npx -y github:gbastkowski/mcp-latex` — no local checkout and no build,
+because `mcp/dist/index.js` is committed and the **root** `package.json`
+exposes it as `bin: mcp-latex-server`.
+
+That root manifest declares **no `scripts`** on purpose: npm runs `prepare` on
+git installs, and `mcp/package.json`'s `prepare` would kick off an esbuild
+bundle that needs devDependencies. Keep it script-free.
+
+Only the skill's manual-fallback path is localised — `__MCP_LATEX_ROOT__` is
+substituted with the repo path by `hosts/install.sh`.
 
 ```sh
 ./hosts/install.sh opencode            # ./.opencode + ./opencode.json in $PWD

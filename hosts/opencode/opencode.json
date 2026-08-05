@@ -3,7 +3,7 @@
   "mcp": {
     "latex": {
       "type": "local",
-      "command": ["node", "__MCP_LATEX_ROOT__/mcp/dist/index.js"],
+      "command": ["npx", "-y", "github:gbastkowski/mcp-latex"],
       "enabled": true
     }
   }

@@ -4,9 +4,11 @@
 #   ./hosts/install.sh opencode [--global]   # default: ./.opencode in $PWD
 #   ./hosts/install.sh hermes                # always ~/.hermes
 #
-# Substitutes __MCP_LATEX_ROOT__ with this repo's absolute path. Re-runnable:
-# existing files are overwritten, but hermes' config.yaml is only appended to
-# if it has no `latex:` MCP entry yet.
+# The MCP config launches the server with `npx -y github:gbastkowski/mcp-latex`,
+# so it needs no local checkout — npx fetches the committed bundle. Only the
+# skill's manual-fallback path is localised (__MCP_LATEX_ROOT__ -> this repo).
+# Re-runnable: existing files are overwritten, but hermes' config.yaml is only
+# appended to if it has no `latex:` MCP entry yet.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -16,7 +18,7 @@ SCOPE="${2:-}"
 die() { printf 'error: %s\n' "$1" >&2; exit 1; }
 subst() { sed "s|__MCP_LATEX_ROOT__|$ROOT|g" "$1"; }
 
-[ -f "$ROOT/mcp/dist/index.js" ] || die "mcp/dist/index.js missing — run: (cd '$ROOT/mcp' && npm install && npm run build)"
+command -v npx >/dev/null || die "npx not on PATH — install Node 18+"
 
 case "$HOST" in
   opencode)

@@ -91,13 +91,17 @@ Notable design points:
 ## Other MCP hosts (opencode, hermes)
 
 The server is a plain stdio MCP process with no Claude-specific API, so other
-hosts can use it directly. `hosts/install.sh` writes the host's config plus a
-ported skill/command, substituting the repo's absolute path (other hosts have no
-`${CLAUDE_PLUGIN_ROOT}`):
+hosts can use it directly. They launch it straight from GitHub — no checkout, no
+build step, since `mcp/dist/index.js` is committed and the root `package.json`
+exposes it as a `bin`:
+
+```json
+"latex": { "type": "local", "command": ["npx", "-y", "github:gbastkowski/mcp-latex"] }
+```
+
+`hosts/install.sh` writes that config plus a ported skill/command:
 
 ```sh
-cd mcp && npm install && npm run build && cd ..   # bundle must exist first
-
 ./hosts/install.sh opencode            # ./.opencode/ + ./opencode.json
 ./hosts/install.sh opencode --global   # ~/.config/opencode/
 ./hosts/install.sh hermes              # ~/.hermes/  (then /reload-mcp)
