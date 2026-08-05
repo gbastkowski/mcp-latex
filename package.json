@@ -1,0 +1,22 @@
+{
+  "name": "mcp-latex-server",
+  "version": "1.0.0",
+  "description": "MCP server that renders Markdown to a classic-but-tuned PDF via pandoc + xelatex.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Gunnar Bastkowski",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gbastkowski/mcp-latex.git"
+  },
+  "bin": {
+    "mcp-latex-server": "mcp/dist/index.js"
+  },
+  "files": [
+    "mcp/dist",
+    "mcp/assets"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
