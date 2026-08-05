@@ -1,0 +1,73 @@
+% Type: newspaper — SCAFFOLD. Single column with a retro masthead. Shape this in
+% the project it is meant for; the structure below is a starting point.
+%
+% Deliberately NOT multicol. Two columns forced two workarounds — pandoc emits
+% every table as a longtable, which hard-errors inside multicols ("longtable not
+% in 1-column mode"), and code blocks overflowed the narrow measure and clipped
+% mid-line. Single column keeps tables breakable and code intact.
+%
+% Open questions for that project: bylines, rules between stories, whether a
+% lead story spans differently.
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{fontspec}
+
+% --- Masthead ---------------------------------------------------------------
+% A 19th-century newspaper nameplate: a high-contrast Didone in even letter-
+% spacing, sandwiched between a thick/thin rule pair, with a dateline strip
+% underneath. Didot and Bodoni are the period-correct faces; fall back through
+% them and finally to the body serif so the render never fails on a missing font.
+% Probe first, then declare — declaring a missing family is a hard error, so the
+% guard has to come before \newfontfamily, not after it.
+\IfFontExistsTF{Didot}
+  {\newfontfamily\mastheadfont{Didot}}
+  {\IfFontExistsTF{Bodoni 72}
+    {\newfontfamily\mastheadfont{Bodoni 72}}
+    {\let\mastheadfont\rmfamily}}
+
+% No letterspacing: the `soul` package's \so breaks on non-ASCII, and a
+% hand-rolled inter-character macro is not worth the fragility. The nameplate
+% relies on size and the rule pair instead.
+% \@title and \@date are internal, so the whole redefinition sits inside
+% \makeatletter … \makeatother. Without it `\@` is parsed as the end-of-sentence
+% macro and xelatex dies with "You can't use \spacefactor in vertical mode".
+\makeatletter
+\renewcommand{\maketitle}{%
+  \begin{center}
+    % Thick rule over thin — the classic masthead sandwich.
+    \rule{\textwidth}{1.6pt}\\[-0.35em]
+    \rule{\textwidth}{0.4pt}\\[0.55em]
+    {\mastheadfont\fontsize{40}{44}\selectfont \@title}\\[0.5em]
+    \rule{\textwidth}{0.4pt}\\[-0.3em]
+    \rule{\textwidth}{1.6pt}\\[0.35em]
+    % Dateline strip: small caps, widely spaced, the way a broadsheet sets it.
+    {\footnotesize\scshape
+      \ifx\@date\@empty Late Edition\else\@date\fi
+      \hfill Vol.~I, No.~1 \hfill Price Twopence}\\[-0.2em]
+    \rule{\textwidth}{0.4pt}
+  \end{center}
+  \vspace{0.8em}
+}
+\makeatother
+
+% --- Page furniture ---------------------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+% Thin rule under the running head. Heavier weights belong to the masthead;
+% repeating them on every page reads as noise. Layouts may override.
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancyhead[L]{\small\scshape __TITLE__}
+\fancyhead[R]{\small\scshape __HEADER_RIGHT__}
+\fancyfoot[C]{\small \thepage/\pageref{LastPage}}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[C]{\small \thepage/\pageref{LastPage}}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
+
+% Newspaper paragraphing: indent the first line, no vertical gap between
+% paragraphs — the opposite of the report type's airy \parskip.
+\setlength{\parskip}{0pt}
+\setlength{\parindent}{1.2em}

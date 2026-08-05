@@ -1,25 +1,16 @@
-% Classic-but-tuned page furniture. Placeholders __TITLE__, __HEADER_RIGHT__,
-% __LINK_COLOR__ are substituted by the MCP server before rendering.
+% Shared by every preset: glyph fallbacks and the table-wrap fix. Layout- and
+% type-independent. Concatenated first, before the layout and type partials.
+% Placeholder __LINK_COLOR__ is substituted by the MCP server.
 \usepackage{xcolor}
-\definecolor{Blue}{HTML}{__LINK_COLOR__} % muted dark blue for links
-\usepackage{fancyhdr}
-\usepackage{lastpage}
-\pagestyle{fancy}
-\fancyhf{}
-% No rule under the header or above the footer.
-\renewcommand{\headrulewidth}{0pt}
-\renewcommand{\footrulewidth}{0pt}
-\fancyhead[L]{\small\itshape __TITLE__}
-\fancyhead[R]{\small\itshape __HEADER_RIGHT__}
-% Compact page marker "N/M" in the bottom-right corner.
-\fancyfoot[R]{\small \thepage/\pageref{LastPage}}
-\fancypagestyle{plain}{%
-  \fancyhf{}%
-  \fancyfoot[R]{\small \thepage/\pageref{LastPage}}%
-  \renewcommand{\headrulewidth}{0pt}%
-  \renewcommand{\footrulewidth}{0pt}%
-}
-\setlength{\parskip}{0.5em}
+\definecolor{Blue}{HTML}{__LINK_COLOR__} % link colour (layouts may redefine)
+
+% Kill common ligatures in the monospace font. Without this, a `--` inside a
+% code block is typeset as an en-dash: `mcp-latex--render` shows as
+% `mcp-latex–render` and `--pdf-engine` as `–pdf-engine`, so copying code out of
+% the PDF yields the wrong text. Prose keeps its normal en/em-dash ligatures —
+% this applies only to \ttfamily.
+\usepackage{fontspec}
+\defaultfontfeatures[\ttfamily]{Ligatures=NoCommon}
 
 % Long monospace identifiers (e.g. http_server_requests_seconds_count) are a
 % single unbreakable \texttt token and overrun narrow table columns. Redefine

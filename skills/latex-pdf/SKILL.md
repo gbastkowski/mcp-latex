@@ -62,7 +62,8 @@ link color `#1F4E79`, TOC + numbered sections on.
 
 ## Manual fallback (no MCP)
 
-If the MCP server is unavailable, render directly — see `mcp/assets/header.tex.tmpl`
+If the MCP server is unavailable, render directly — see the partials under `mcp/assets/` (`common.tex.tmpl` plus one
+`layouts/*` and one `types/*`, concatenated in that order)
 for the header, then:
 
 ```sh

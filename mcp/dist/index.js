@@ -21115,14 +21115,49 @@ import {
   mkdtemp,
   rm,
   access,
-  copyFile
+  copyFile,
+  readdir
 } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve, basename, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 var __dirname = dirname(fileURLToPath(import.meta.url));
-var TEMPLATE_PATH = join(__dirname, "..", "assets", "header.tex.tmpl");
+var ASSETS_DIR = join(__dirname, "..", "assets");
+var COMMON_PATH = join(ASSETS_DIR, "common.tex.tmpl");
+var LAYOUTS_DIR = join(ASSETS_DIR, "layouts");
+var TYPES_DIR = join(ASSETS_DIR, "types");
+var DEFAULT_PRESET = "classic-report";
+var TYPE_DEFAULTS = {
+  // A newspaper has no table of contents and no numbered sections.
+  newspaper: { toc: false, numberSections: false }
+};
+async function listPresetParts(dir) {
+  const files = await readdir(dir).catch(() => []);
+  return files.filter((f) => f.endsWith(".tex.tmpl")).map((f) => f.replace(/\.tex\.tmpl$/, "")).sort();
+}
+async function resolvePreset(preset) {
+  const layouts = await listPresetParts(LAYOUTS_DIR);
+  const types = await listPresetParts(TYPES_DIR);
+  const valid = () => layouts.flatMap((l) => types.map((t) => `${l}-${t}`)).join(", ");
+  const dash = preset.indexOf("-");
+  if (dash <= 0 || dash === preset.length - 1) {
+    return {
+      ok: false,
+      error: `Invalid preset '${preset}': expected '<layout>-<type>'. Valid presets: ${valid()}`
+    };
+  }
+  const layout = preset.slice(0, dash);
+  const type = preset.slice(dash + 1);
+  if (!layouts.includes(layout) || !types.includes(type)) {
+    const which = !layouts.includes(layout) ? `unknown layout '${layout}' (have: ${layouts.join(", ")})` : `unknown type '${type}' (have: ${types.join(", ")})`;
+    return {
+      ok: false,
+      error: `Invalid preset '${preset}': ${which}. Valid presets: ${valid()}`
+    };
+  }
+  return { ok: true, layout, type };
+}
 var DOCKER_IMAGE = "ghcr.io/gbastkowski/mcp-latex-tex:latest";
 var DOCKER_PLATFORM = "linux/amd64";
 var MAC_DEFAULT_MAIN = "Palatino";
@@ -21168,6 +21203,83 @@ async function dockerAvailable() {
   return res.code === 0;
 }
 var SIMPLE_DOC_MAX_HEADINGS = 3;
+var MIN_TOC_ENTRIES = 4;
+var MIN_TOC_TOP_LEVEL = 3;
+function headingLevelCounts(src, fmt, maxLevel) {
+  const counts = new Array(maxLevel).fill(0);
+  const marker = fmt === "org" ? "*" : "#";
+  const openFence = fmt === "org" ? /^\s*#\+begin_/i : /^\s*(```+|~~~+)/;
+  const closeFence = fmt === "org" ? /^\s*#\+end_/i : /^\s*(```+|~~~+)/;
+  let inBlock = false;
+  for (const line of src.split(/\r?\n/)) {
+    if (!inBlock && openFence.test(line)) {
+      inBlock = true;
+      continue;
+    }
+    if (inBlock) {
+      if (closeFence.test(line)) inBlock = false;
+      continue;
+    }
+    const m = line.match(fmt === "org" ? /^(\*+)\s+\S/ : /^(#+)\s+\S/);
+    if (!m) continue;
+    const level = m[1].length;
+    if (level >= 1 && level <= maxLevel) counts[level - 1]++;
+  }
+  return counts;
+}
+function tocMakesSense(src, fmt, tocDepth, shifted) {
+  const offset = shifted ? 1 : 0;
+  const counts = headingLevelCounts(src, fmt, tocDepth + offset + 1);
+  let entries = 0;
+  for (let lvl = 1 + offset; lvl <= tocDepth + offset; lvl++) {
+    entries += counts[lvl - 1] ?? 0;
+  }
+  const topLevel = counts[offset] ?? 0;
+  return entries >= MIN_TOC_ENTRIES && topLevel >= MIN_TOC_TOP_LEVEL;
+}
+var INPUT_FORMATS = { markdown: "md", org: "org" };
+function formatFromPath(p) {
+  return extname(p).toLowerCase() === ".org" ? "org" : "markdown";
+}
+function countOrgHeadings(src) {
+  let count = 0;
+  let inBlock = false;
+  for (const line of src.split(/\r?\n/)) {
+    if (/^\s*#\+begin_/i.test(line)) {
+      inBlock = true;
+      continue;
+    }
+    if (/^\s*#\+end_/i.test(line)) {
+      inBlock = false;
+      continue;
+    }
+    if (!inBlock && /^\*{1,6}\s+\S/.test(line)) count++;
+  }
+  return count;
+}
+function countHeadingsAtLevel(src, fmt, level) {
+  const marker = fmt === "org" ? "\\*" : "#";
+  const re = new RegExp(`^${marker}{${level}}(?!${marker})\\s+\\S`);
+  const openFence = fmt === "org" ? /^\s*#\+begin_/i : /^\s*(```+|~~~+)/;
+  const closeFence = fmt === "org" ? /^\s*#\+end_/i : /^\s*(```+|~~~+)/;
+  let count = 0;
+  let inBlock = false;
+  for (const line of src.split(/\r?\n/)) {
+    if (!inBlock && openFence.test(line)) {
+      inBlock = true;
+      continue;
+    }
+    if (inBlock) {
+      if (closeFence.test(line)) inBlock = false;
+      continue;
+    }
+    if (re.test(line)) count++;
+  }
+  return count;
+}
+function shouldShiftHeadings(src, fmt) {
+  return countHeadingsAtLevel(src, fmt, 1) === 1 && countHeadingsAtLevel(src, fmt, 2) > 0;
+}
 function countHeadings(md) {
   let count = 0;
   let inFence = false;
@@ -21194,6 +21306,9 @@ function buildPandocArgs(opts) {
     opts.input,
     "-o",
     opts.output,
+    // Explicit, so inline source (no extension) and .txt files are unambiguous.
+    "--from",
+    opts.format,
     "--pdf-engine=xelatex",
     `--include-in-header=${opts.header}`,
     "-V",
@@ -21215,6 +21330,7 @@ function buildPandocArgs(opts) {
   ];
   if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
   if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
+  if (opts.shiftHeadings) a.push("--shift-heading-level-by=-1");
   if (opts.toc) a.push("--toc", `--toc-depth=${opts.tocDepth}`);
   if (opts.numberSections) a.push("--number-sections");
   return a;
@@ -21223,10 +21339,25 @@ var TLMGR_HINT = "Hint: BasicTeX is minimal \u2014 if a .sty is missing, run `su
 var server = new McpServer({ name: "mcp-latex", version: "1.0.0" });
 server.tool(
   "render_markdown_to_pdf",
-  "Render a Markdown document to a nicely-styled PDF using pandoc + xelatex (classic-but-tuned Palatino report: fancyhdr header/footer with 'Page N of M', subtle dark-blue links, A4, TOC, numbered sections). Runs natively (macOS fonts, can open in Skim) or in a Docker image (portable/reproducible).",
+  "Render a Markdown or Org document to a nicely-styled PDF using pandoc + xelatex. Styling comes from a `preset` named '<layout>-<type>' (e.g. 'ista-report', 'eisvogel-newspaper'); call with an invalid preset to get the list of valid ones. Runs natively (macOS fonts, can open in Skim) or in a Docker image (portable/reproducible).",
   {
-    markdown_path: external_exports.string().optional().describe("Path to the input Markdown file. Provide this OR `markdown`."),
-    markdown: external_exports.string().optional().describe("Inline Markdown source. Provide this OR `markdown_path`."),
+    input_path: external_exports.string().optional().describe(
+      "Path to the input file (.md or .org). Provide this OR `input`. Alias: `markdown_path`."
+    ),
+    input: external_exports.string().optional().describe(
+      "Inline document source. Provide this OR `input_path`. Alias: `markdown`."
+    ),
+    input_format: external_exports.enum(["auto", "markdown", "org"]).default("auto").describe(
+      "Input syntax. 'auto' infers from the file extension (.org -> org, anything else -> markdown) and defaults to markdown for inline input."
+    ),
+    preset: external_exports.string().default(DEFAULT_PRESET).describe(
+      "Styling preset, '<layout>-<type>'. Layout controls fonts/colour/furniture, type controls structure. Any layout composes with any type; an invalid value returns the list of valid presets."
+    ),
+    shift_headings: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
+      "Promote every heading one level. 'auto' does so when the document has exactly one top-level heading and something beneath it \u2014 that H1 is the document title, so it becomes the PDF title and the H2s become top-level sections instead of being nested under it."
+    ),
+    markdown_path: external_exports.string().optional().describe("Deprecated alias for `input_path`."),
+    markdown: external_exports.string().optional().describe("Deprecated alias for `input`."),
     output_path: external_exports.string().optional().describe(
       "Output PDF path. Defaults to the input file with a .pdf extension, or ./document.pdf for inline input."
     ),
@@ -21258,6 +21389,11 @@ server.tool(
   },
   async (args) => {
     const {
+      input_path,
+      input,
+      input_format,
+      preset,
+      shift_headings,
       markdown_path,
       markdown,
       output_path,
@@ -21275,9 +21411,14 @@ server.tool(
       engine,
       open_in
     } = args;
-    if (!markdown_path && markdown === void 0) {
-      return errText("Provide either `markdown_path` or `markdown`.");
+    const srcPath = input_path ?? markdown_path;
+    const srcInline = input ?? markdown;
+    if (!srcPath && srcInline === void 0) {
+      return errText("Provide either `input_path` or `input`.");
     }
+    const resolved = await resolvePreset(preset);
+    if (!resolved.ok) return errText(resolved.error);
+    const { layout, type } = resolved;
     let chosen;
     if (engine === "native" || engine === "docker") {
       chosen = engine;
@@ -21298,10 +21439,11 @@ server.tool(
     const monoFont = chosen === "docker" && mono_font === MAC_DEFAULT_MONO ? "" : mono_font;
     const scratch = await mkdtemp(join(tmpdir(), "mcp-latex-"));
     try {
+      const fmt = input_format === "auto" ? srcPath ? formatFromPath(srcPath) : "markdown" : input_format;
       let inputFile;
       let outFile;
-      if (markdown_path) {
-        inputFile = resolve(markdown_path);
+      if (srcPath) {
+        inputFile = resolve(srcPath);
         if (!await exists(inputFile)) {
           return errText(`Input not found: ${inputFile}`);
         }
@@ -21310,24 +21452,32 @@ server.tool(
           basename(inputFile, extname(inputFile)) + ".pdf"
         );
       } else {
-        inputFile = join(scratch, "document.md");
-        await writeFile(inputFile, markdown ?? "", "utf8");
+        inputFile = join(scratch, `document.${INPUT_FORMATS[fmt]}`);
+        await writeFile(inputFile, srcInline ?? "", "utf8");
         outFile = output_path ? resolve(output_path) : resolve("document.pdf");
       }
-      const tmpl = await readFile(TEMPLATE_PATH, "utf8");
-      const header = tmpl.replace(/__TITLE__/g, texEscape(title)).replace(/__HEADER_RIGHT__/g, texEscape(header_right)).replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
+      const parts = await Promise.all([
+        readFile(COMMON_PATH, "utf8"),
+        readFile(join(TYPES_DIR, `${type}.tex.tmpl`), "utf8"),
+        readFile(join(LAYOUTS_DIR, `${layout}.tex.tmpl`), "utf8")
+      ]);
+      const header = parts.join("\n").replace(/__TITLE__/g, texEscape(title)).replace(/__HEADER_RIGHT__/g, texEscape(header_right)).replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
       const headerFile = join(scratch, "header.tex");
       await writeFile(headerFile, header, "utf8");
-      const source = markdown ?? await readFile(inputFile, "utf8").catch(() => "");
-      const headingCount = countHeadings(source);
-      const wantToc = resolveAuto(toc, headingCount);
-      const wantNumbers = resolveAuto(number_sections, headingCount);
+      const source = srcInline ?? await readFile(inputFile, "utf8").catch(() => "");
+      const headingCount = fmt === "org" ? countOrgHeadings(source) : countHeadings(source);
+      const shift = shift_headings === "auto" ? shouldShiftHeadings(source, fmt) : shift_headings === "true";
+      const typeDefaults = TYPE_DEFAULTS[type] ?? {};
+      const wantToc = toc === "auto" ? typeDefaults.toc !== void 0 ? typeDefaults.toc : tocMakesSense(source, fmt, toc_depth, shift) : toc === "true";
+      const wantNumbers = number_sections === "auto" && typeDefaults.numberSections !== void 0 ? typeDefaults.numberSections : resolveAuto(number_sections, headingCount);
       let res;
       if (chosen === "native") {
         const pandocArgs = buildPandocArgs({
           input: inputFile,
           output: outFile,
           header: headerFile,
+          format: fmt,
+          shiftHeadings: shift,
           papersize,
           fontsize,
           margin,
@@ -21339,12 +21489,14 @@ server.tool(
         });
         res = await run("pandoc", pandocArgs, dirname(inputFile));
       } else {
-        const stagedInput = join(scratch, "input.md");
-        await copyFile(inputFile, stagedInput);
+        const stagedName = `input.${INPUT_FORMATS[fmt]}`;
+        await copyFile(inputFile, join(scratch, stagedName));
         const pandocArgs = buildPandocArgs({
-          input: "/data/input.md",
+          input: `/data/${stagedName}`,
           output: "/data/out.pdf",
           header: "/data/header.tex",
+          format: fmt,
+          shiftHeadings: shift,
           papersize,
           fontsize,
           margin,

@@ -13,8 +13,8 @@ server.
 - `skills/latex-pdf/SKILL.md` — model-invoked skill.
 - `commands/render-pdf.md` — user command `/mcp-latex:render-pdf <file> [title]`.
 - `mcp/` — MCP server (TypeScript). Tool: `render_markdown_to_pdf`.
-- `mcp/assets/header.tex.tmpl` — the tuned LaTeX header (page furniture, glyph
-  maps, table-wrap fix). Placeholders `__TITLE__`, `__HEADER_RIGHT__`,
+- `mcp/assets/` — the LaTeX header, split into three composable pieces (see
+  **Presets** below). Placeholders `__TITLE__`, `__HEADER_RIGHT__` and
   `__LINK_COLOR__` are substituted at render time.
 - `docker/Dockerfile` — custom TeX image `ghcr.io/gbastkowski/mcp-latex-tex`.
 - `hosts/` — ports for non-Claude MCP hosts (opencode, hermes) + `install.sh`.
@@ -22,7 +22,7 @@ server.
 ## Non-Claude hosts (`hosts/`)
 
 The MCP server itself is host-agnostic: plain stdio, no Claude APIs, and it
-resolves `assets/header.tex.tmpl` relative to `import.meta.url`, so any
+resolves `assets/` relative to `import.meta.url`, so any
 launcher works. Other hosts have no `${CLAUDE_PLUGIN_ROOT}`, so they launch it
 via `npx -y github:gbastkowski/mcp-latex` — no local checkout and no build,
 because `mcp/dist/index.js` is committed and the **root** `package.json`
@@ -93,12 +93,51 @@ Convert a page to PNG for visual review: `pdftoppm -png -r 110 -f N -l N in.pdf 
 - Native prereqs: `sudo tlmgr install fancyhdr lastpage newunicodechar soul xcolor`.
   `soul` is needed for `~~strikethrough~~`.
 - Fonts without a glyph render as an empty box; arrows/emoji are mapped in
-  `header.tex.tmpl` via `newunicodechar`.
+  `common.tex.tmpl` via `newunicodechar`.
 - Long unbreakable `\texttt{...}` tokens overran table columns; `\texttt` is
   redefined in the header to break after underscores.
 - TOC depth is `--toc-depth=2` by default (tool arg `toc_depth`).
-- `toc` and `number_sections` are tri-state (`auto`|`true`|`false`, default
-  `auto`): a doc with fewer than 3 headings renders plain (no TOC, no numbers).
+- `toc`, `number_sections` and `shift_headings` are tri-state
+  (`auto`|`true`|`false`, default `auto`).
+- The TOC heuristic counts **entries the TOC would actually show**, not total
+  headings: at least 4 entries at or above `toc_depth` and at least 3 top-level
+  sections. A total-heading threshold gave a TOC to one-page notes with a single
+  section and four subsections. It also accounts for `shift_headings`, since
+  promotion changes which source levels land in the TOC.
+- `sectsty` and `titlesec` are NOT in BasicTeX — layouts patch headings with
+  `\@startsection` instead.
+- Colouring a heading needs `\let\normalcolor\relax` in the style argument:
+  with `--number-sections` the section-number box restores `\normalcolor` and
+  resets the heading to black mid-line.
+- pandoc sets only `mainfont`/`monofont`, never `sansfont`. A layout using
+  `\sffamily` must set one itself or `\sffamily` silently falls back to Latin
+  Modern Sans, which clashes with Palatino. Guard with `\IfFontExistsTF`.
+- `\newfontfamily` on a missing font is a hard error — probe with
+  `\IfFontExistsTF` *before* declaring, not after.
+- Redefining `\maketitle` to use `\@title`/`\@date` must sit inside
+  `\makeatletter`…`\makeatother`, else xelatex dies with "You can't use
+  `\spacefactor` in vertical mode".
+- `multicol` is deliberately unused: pandoc emits tables as `longtable`, which
+  hard-errors inside `multicols` ("longtable not in 1-column mode"), and code
+  blocks clip at a narrow measure.
+
+## Presets
+
+Styling is a `preset` string, `<layout>-<type>`, split on the FIRST dash and
+composed as `common.tex.tmpl` + `types/<type>` + `layouts/<layout>` — layout last
+so it can override the furniture the type set up. Adding a file to
+`assets/layouts/` or `assets/types/` is enough; there is no registry to update
+and no code change. An invalid preset returns the full list of valid combinations.
+
+`TYPE_DEFAULTS` in `mcp/src/index.ts` lets a type override the `auto` tri-states
+where the LaTeX cannot — a `newspaper` has to refuse the TOC there, because a
+partial cannot decline pandoc's `--toc` flag.
+
+Demos: `scratchpad/render-demos.py` renders all 6 presets **through the server**
+over JSON-RPC (not by assembling pandoc calls, which would skip preset
+composition, type defaults and heading shift). Reports and newspapers use
+different source documents, since a technical doc says nothing about whether a
+masthead works.
 
 ## Config wiring
 

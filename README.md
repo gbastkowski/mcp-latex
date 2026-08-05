@@ -18,7 +18,9 @@ It bundles two things:
 skills/latex-pdf/SKILL.md      instructions, prerequisites, gotchas
 mcp/                           TypeScript MCP server
   src/index.ts                 render_markdown_to_pdf tool
-  assets/header.tex.tmpl       tuned Palatino page furniture
+  assets/common.tex.tmpl       glyph maps + table-wrap fix (shared)
+  assets/layouts/              fonts, colour, page furniture
+  assets/types/                document structure
 ```
 
 ## The tool
@@ -27,16 +29,49 @@ mcp/                           TypeScript MCP server
 
 | arg | default | notes |
 |-----|---------|-------|
-| `markdown_path` / `markdown` | — | input file, or inline source |
+| `input_path` / `input` | — | input file, or inline source (aliases: `markdown_path` / `markdown`) |
+| `input_format` | `auto` | `auto`\|`markdown`\|`org`; auto infers from the extension |
+| `preset` | `classic-report` | `<layout>-<type>`; see **Presets** below |
 | `output_path` | `<input>.pdf` | |
 | `title` | "" | left running-header |
 | `header_right` | "" | right running-header, e.g. `PRD` |
 | `main_font` / `mono_font` | Palatino / Menlo | |
 | `papersize` / `fontsize` / `margin` | a4 / 11pt / 2.5cm | |
 | `link_color` | `1F4E79` | hex, no `#` |
-| `toc` / `number_sections` | auto / auto | `auto`\|`true`\|`false`; auto = on only with ≥3 headings |
+| `toc` | `auto` | `auto`\|`true`\|`false`; auto = on only when the TOC would have something to navigate |
+| `number_sections` | `auto` | `auto`\|`true`\|`false`; auto = on above 3 headings |
+| `shift_headings` | `auto` | `auto`\|`true`\|`false`; auto promotes when a lone H1 is the title |
 | `engine` | `auto` | `auto` \| `native` \| `docker` |
 | `open_in` | `none` | `Skim` \| `Preview` \| `none` |
+
+### Presets
+
+Styling is a `preset` named `<layout>-<type>`. **Layout** owns fonts, colour and
+page furniture; **type** owns structure. Any layout composes with any type, and
+an invalid name returns the list of valid ones.
+
+| layout | look |
+|---|---|
+| `classic` | the original: Palatino, no header rule, italic running heads |
+| `ista` | ista brand — navy Optima headings, navy links, no header rule |
+| `eisvogel` | slate accents, small-caps running heads, thin rule, centred page number |
+
+| type | structure |
+|---|---|
+| `report` | running header, `N/M` footer, airy paragraph spacing. TOC when useful |
+| `newspaper` | retro Didot masthead with dateline, indented paragraphs, no TOC |
+
+Some types override the `auto` defaults — a newspaper never gets a TOC or
+numbered sections, whatever the heading count. An explicit `true`/`false` still
+wins.
+
+### Heading promotion
+
+With `shift_headings: auto` (the default), a document with exactly one top-level
+heading and something beneath it has every heading promoted one level: that H1
+becomes the PDF's title rather than a numbered section competing with its own
+children, and the H2s become top-level sections. For the `newspaper` type this is
+also what feeds the masthead.
 
 ### Engines
 
@@ -64,8 +99,10 @@ A render request runs through seven steps:
    source is written to a temp file first.
 2. **Pick engine** — `auto` uses native when `pandoc` and `xelatex` are on
    PATH, else docker; `native`/`docker` force one.
-3. **Build `header.tex`** — the template `mcp/assets/header.tex.tmpl` with three
-   placeholders substituted: `__TITLE__`, `__HEADER_RIGHT__`, `__LINK_COLOR__`.
+3. **Compose `header.tex`** — from the `preset`: `common.tex.tmpl`, then
+   `types/<type>.tex.tmpl`, then `layouts/<layout>.tex.tmpl`, concatenated in
+   that order so the layout can override the furniture its type set up. Three
+   placeholders are substituted: `__TITLE__`, `__HEADER_RIGHT__`, `__LINK_COLOR__`.
 4. **Build pandoc args** — `--pdf-engine=xelatex`, the include-header, TOC
    (`--toc --toc-depth=N`), numbered sections, and `-V` variables for fonts,
    paper size, margins and link colours.
@@ -80,9 +117,12 @@ Notable design points:
 
 - **One engine abstraction** — a single `buildPandocArgs()` feeds both engines;
   only the paths differ (host absolute paths vs `/data/...` in the container).
-- **`header.tex.tmpl` is the styling brain** — fancyhdr furniture, a
-  `newunicodechar` glyph map (arrows, emoji), and a breakable `\texttt` so long
-  identifiers wrap in table cells. The server only substitutes placeholders.
+- **The assets are the styling brain** — `common.tex.tmpl` holds what every
+  preset needs (a `newunicodechar` glyph map for arrows and emoji, a breakable
+  `\texttt` so long identifiers wrap in table cells, and ligature suppression in
+  monospace so `--` in code stays two hyphens). `layouts/*` own fonts, colour and
+  page furniture; `types/*` own structure. The server only concatenates them and
+  substitutes placeholders — adding a layout or type needs no code change.
 - **Scratch dir** — `mkdtemp` per call, removed in a `finally`; docker needs the
   input and header co-located under one mount, so they are staged there.
 - **Packaging** — the server is esbuild-bundled to a single `dist/index.js`

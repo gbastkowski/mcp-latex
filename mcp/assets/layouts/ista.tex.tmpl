@@ -1,0 +1,49 @@
+% Layout: ista — ista brand palette on white paper.
+%
+% Brand colours come from the ista-presentation deck (navy #0c1033, mint
+% #1BEB83). Those are tuned for a dark slide background, so they do not
+% transfer directly: navy carries the headings and links here, and mint is not
+% used at all — on white paper any mint big enough to notice reads as a banner,
+% and at body size it fails contrast. It stays defined for presets that want an
+% accent. The deck's #a0a8c0 grey is darkened to #5b6478 to stay legible.
+\definecolor{istaNavy}{HTML}{0c1033}
+\definecolor{istaMint}{HTML}{1BEB83} % defined but unused; see above
+\definecolor{istaGray}{HTML}{5b6478}
+\colorlet{Blue}{istaNavy} % links pick up the brand navy
+
+% This layout puts headings and running heads in \sffamily, but pandoc only
+% sets mainfont and monofont — the sans family is left at xelatex's default,
+% which is Latin Modern Sans. Against Palatino that reads as a mismatch (too
+% light, wrong era). Optima is the natural partner: Zapf designed both, so the
+% humanist proportions agree. Guarded so a missing font degrades to the default
+% instead of failing the whole render.
+\usepackage{fontspec}
+\IfFontExistsTF{Optima}{\setsansfont{Optima}}{}
+
+% Navy sans-serif headings against the serif body. Patched via \@startsection
+% rather than sectsty/titlesec — neither ships with BasicTeX.
+%
+% \headcolor, not a bare \color: with --number-sections LaTeX emits the section
+% number in a box that restores \normalcolor, which resets the heading to black
+% halfway through. Neutralising \normalcolor inside the heading group makes the
+% colour stick across both the number and the text.
+\makeatletter
+\newcommand{\headcolor}{\let\normalcolor\relax\color{istaNavy}}
+\renewcommand{\section}{\@startsection{section}{1}{0pt}%
+  {-3.5ex plus -1ex minus -.2ex}{2.3ex plus .2ex}%
+  {\normalfont\Large\sffamily\bfseries\headcolor}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{0pt}%
+  {-3.25ex plus -1ex minus -.2ex}{1.5ex plus .2ex}%
+  {\normalfont\large\sffamily\bfseries\headcolor}}
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{0pt}%
+  {-3.25ex plus -1ex minus -.2ex}{1.5ex plus .2ex}%
+  {\normalfont\normalsize\sffamily\bfseries\headcolor}}
+\makeatother
+
+% No rule under the running header: a full-width mint band reads as a banner on
+% paper and fights the body copy. The brand shows up in the navy headings, the
+% navy links and the coloured running heads instead.
+\renewcommand{\headrulewidth}{0pt}
+
+\fancyhead[L]{\small\sffamily\color{istaNavy}__TITLE__}
+\fancyhead[R]{\small\sffamily\color{istaGray}__HEADER_RIGHT__}

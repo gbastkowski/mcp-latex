@@ -1,0 +1,36 @@
+% Layout: eisvogel — approximates the well-known pandoc "Eisvogel" template
+% (github.com/Wandmalfarbe/pandoc-latex-template) without vendoring it: a thin
+% rule under the header, small-caps running heads and a muted slate accent.
+% Not a byte-for-byte copy; the same visual register.
+\definecolor{eisvogelAccent}{HTML}{4E6E81}
+\definecolor{eisvogelRule}{HTML}{B0B7BF}
+\colorlet{Blue}{eisvogelAccent}
+
+% pandoc sets only mainfont/monofont, so \sffamily would fall back to Latin
+% Modern Sans and clash with the Palatino body. Eisvogel's register is a neutral
+% grotesque, so Helvetica Neue rather than a humanist face. Guarded: a missing
+% font degrades to the default instead of failing the render.
+\usepackage{fontspec}
+\IfFontExistsTF{Helvetica Neue}{\setsansfont{Helvetica Neue}}{}
+
+% Accent-coloured sans headings. Patched via \@startsection — sectsty and
+% titlesec are not in BasicTeX.
+%
+% \headcolor neutralises \normalcolor so the colour survives the section-number
+% box that --number-sections emits; a bare \color resets to black mid-heading.
+\makeatletter
+\newcommand{\headcolor}{\let\normalcolor\relax\color{eisvogelAccent}}
+\renewcommand{\section}{\@startsection{section}{1}{0pt}%
+  {-3.5ex plus -1ex minus -.2ex}{2.3ex plus .2ex}%
+  {\normalfont\Large\sffamily\bfseries\headcolor}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{0pt}%
+  {-3.25ex plus -1ex minus -.2ex}{1.5ex plus .2ex}%
+  {\normalfont\large\sffamily\bfseries\headcolor}}
+\makeatother
+
+% Thin rule under the running header — Eisvogel's most recognisable trait.
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{eisvogelRule}\leaders\hrule height \headrulewidth\hfill}}
+
+\fancyhead[L]{\small\scshape __TITLE__}
+\fancyhead[R]{\small\scshape __HEADER_RIGHT__}

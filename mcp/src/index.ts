@@ -10,6 +10,7 @@ import {
   rm,
   access,
   copyFile,
+  readdir,
 } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,7 +19,67 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // assets live next to package root: mcp/assets/, dist/ is a sibling.
-const TEMPLATE_PATH = join(__dirname, "..", "assets", "header.tex.tmpl");
+const ASSETS_DIR = join(__dirname, "..", "assets");
+// Shared prelude, then a type partial, then a layout partial — concatenated in
+// that order so a layout can override the furniture its type set up.
+const COMMON_PATH = join(ASSETS_DIR, "common.tex.tmpl");
+const LAYOUTS_DIR = join(ASSETS_DIR, "layouts");
+const TYPES_DIR = join(ASSETS_DIR, "types");
+
+// A preset is "<layout>-<type>". Both axes are free to grow: adding a file to
+// assets/layouts or assets/types is enough, no code change. The type name may
+// not itself contain a dash, so the split is on the FIRST dash.
+const DEFAULT_PRESET = "classic-report";
+
+// Per-type overrides for the tri-state defaults. A type that is structurally
+// wrong with a TOC says so here; the LaTeX partial cannot refuse pandoc's
+// --toc on its own. An explicit caller argument still wins.
+const TYPE_DEFAULTS: Record<string, { toc?: boolean; numberSections?: boolean }> =
+  {
+    // A newspaper has no table of contents and no numbered sections.
+    newspaper: { toc: false, numberSections: false },
+  };
+
+async function listPresetParts(dir: string): Promise<string[]> {
+  const files = await readdir(dir).catch(() => [] as string[]);
+  return files
+    .filter((f) => f.endsWith(".tex.tmpl"))
+    .map((f) => f.replace(/\.tex\.tmpl$/, ""))
+    .sort();
+}
+
+// Split "ista-newspaper" into its layout and type halves and check both exist.
+// Returns a human-readable error listing the valid combinations otherwise.
+async function resolvePreset(
+  preset: string,
+): Promise<
+  { ok: true; layout: string; type: string } | { ok: false; error: string }
+> {
+  const layouts = await listPresetParts(LAYOUTS_DIR);
+  const types = await listPresetParts(TYPES_DIR);
+  const valid = () =>
+    layouts.flatMap((l) => types.map((t) => `${l}-${t}`)).join(", ");
+
+  const dash = preset.indexOf("-");
+  if (dash <= 0 || dash === preset.length - 1) {
+    return {
+      ok: false,
+      error: `Invalid preset '${preset}': expected '<layout>-<type>'. Valid presets: ${valid()}`,
+    };
+  }
+  const layout = preset.slice(0, dash);
+  const type = preset.slice(dash + 1);
+  if (!layouts.includes(layout) || !types.includes(type)) {
+    const which = !layouts.includes(layout)
+      ? `unknown layout '${layout}' (have: ${layouts.join(", ")})`
+      : `unknown type '${type}' (have: ${types.join(", ")})`;
+    return {
+      ok: false,
+      error: `Invalid preset '${preset}': ${which}. Valid presets: ${valid()}`,
+    };
+  }
+  return { ok: true, layout, type };
+}
 
 // Docker image with pandoc + a working TeX stack. Only published for amd64,
 // so we pin the platform — on Apple Silicon this runs under emulation (slower
@@ -88,8 +149,143 @@ async function dockerAvailable(): Promise<boolean> {
 }
 
 // In 'auto' mode a document with fewer than this many headings is treated as
-// "simple": no table of contents and no section numbering.
+// "simple": no section numbering.
 const SIMPLE_DOC_MAX_HEADINGS = 3;
+
+// A TOC earns its page only when there is something to navigate. Counting every
+// heading is the wrong signal: a one-page note with a single section and four
+// subsections trips a total-count threshold while having nothing worth listing.
+// What matters is the number of entries the TOC will actually show, which means
+// counting only headings at or above `toc_depth`, and requiring enough
+// top-level sections that a reader would want to jump between them.
+const MIN_TOC_ENTRIES = 4;
+const MIN_TOC_TOP_LEVEL = 3;
+
+// Count headings per level (1-based) up to `maxLevel`, skipping code/example
+// blocks. Shared by the TOC heuristic and the title-detection logic.
+function headingLevelCounts(
+  src: string,
+  fmt: InputFormat,
+  maxLevel: number,
+): number[] {
+  const counts = new Array(maxLevel).fill(0);
+  const marker = fmt === "org" ? "*" : "#";
+  const openFence = fmt === "org" ? /^\s*#\+begin_/i : /^\s*(```+|~~~+)/;
+  const closeFence = fmt === "org" ? /^\s*#\+end_/i : /^\s*(```+|~~~+)/;
+
+  let inBlock = false;
+  for (const line of src.split(/\r?\n/)) {
+    if (!inBlock && openFence.test(line)) {
+      inBlock = true;
+      continue;
+    }
+    if (inBlock) {
+      if (closeFence.test(line)) inBlock = false;
+      continue;
+    }
+    const m = line.match(fmt === "org" ? /^(\*+)\s+\S/ : /^(#+)\s+\S/);
+    if (!m) continue;
+    const level = m[1].length;
+    if (level >= 1 && level <= maxLevel) counts[level - 1]++;
+  }
+  return counts;
+}
+
+// Decide whether a TOC is worth printing, given the depth it will be cut at and
+// whether headings are being promoted a level first.
+function tocMakesSense(
+  src: string,
+  fmt: InputFormat,
+  tocDepth: number,
+  shifted: boolean,
+): boolean {
+  // With --shift-heading-level-by=-1 the H1 becomes the title and everything
+  // moves up, so what the TOC lists is the source's level 2..(depth+1).
+  const offset = shifted ? 1 : 0;
+  const counts = headingLevelCounts(src, fmt, tocDepth + offset + 1);
+
+  let entries = 0;
+  for (let lvl = 1 + offset; lvl <= tocDepth + offset; lvl++) {
+    entries += counts[lvl - 1] ?? 0;
+  }
+  const topLevel = counts[offset] ?? 0;
+
+  return entries >= MIN_TOC_ENTRIES && topLevel >= MIN_TOC_TOP_LEVEL;
+}
+
+// Input formats we accept. pandoc infers from the extension too, but being
+// explicit lets inline source (which has no extension) pick a format, and lets
+// a .txt/.text file be treated as either.
+const INPUT_FORMATS = { markdown: "md", org: "org" } as const;
+type InputFormat = keyof typeof INPUT_FORMATS;
+
+// Guess the input format from a file extension. Anything unrecognised falls
+// back to markdown, which is what the tool has always assumed.
+function formatFromPath(p: string): InputFormat {
+  return extname(p).toLowerCase() === ".org" ? "org" : "markdown";
+}
+
+// Count org headings (`*`..`******` at line start), skipping #+begin_…/#+end_…
+// blocks so a `* bullet` inside an example block is not counted. Org uses `*`
+// for headings where Markdown uses `#`, so the Markdown counter returns 0 for
+// every org file — which would silently disable the auto-TOC heuristic.
+function countOrgHeadings(src: string): number {
+  let count = 0;
+  let inBlock = false;
+  for (const line of src.split(/\r?\n/)) {
+    if (/^\s*#\+begin_/i.test(line)) {
+      inBlock = true;
+      continue;
+    }
+    if (/^\s*#\+end_/i.test(line)) {
+      inBlock = false;
+      continue;
+    }
+    if (!inBlock && /^\*{1,6}\s+\S/.test(line)) count++;
+  }
+  return count;
+}
+
+// Count headings at a single level (1 = `#` / `*`), skipping code and example
+// blocks. Used to detect the "one H1 = document title" shape.
+function countHeadingsAtLevel(
+  src: string,
+  fmt: InputFormat,
+  level: number,
+): number {
+  const marker = fmt === "org" ? "\\*" : "#";
+  // Exactly `level` markers, then whitespace — so `##` never matches level 1.
+  const re = new RegExp(`^${marker}{${level}}(?!${marker})\\s+\\S`);
+  const openFence =
+    fmt === "org" ? /^\s*#\+begin_/i : /^\s*(```+|~~~+)/;
+  const closeFence = fmt === "org" ? /^\s*#\+end_/i : /^\s*(```+|~~~+)/;
+
+  let count = 0;
+  let inBlock = false;
+  for (const line of src.split(/\r?\n/)) {
+    if (!inBlock && openFence.test(line)) {
+      inBlock = true;
+      continue;
+    }
+    if (inBlock) {
+      if (closeFence.test(line)) inBlock = false;
+      continue;
+    }
+    if (re.test(line)) count++;
+  }
+  return count;
+}
+
+// True when the document has exactly one top-level heading and at least one
+// heading below it: that H1 is almost certainly the document title, so every
+// heading should move up a level and the title becomes the PDF's title rather
+// than a numbered section competing with its own children.
+function shouldShiftHeadings(src: string, fmt: InputFormat): boolean {
+  return (
+    countHeadingsAtLevel(src, fmt, 1) === 1 &&
+    countHeadingsAtLevel(src, fmt, 2) > 0
+  );
+}
 
 // Count ATX headings (`#`..`######`) in Markdown, ignoring anything inside
 // fenced code blocks so a `# comment` in a code sample is not mistaken for one.
@@ -125,11 +321,13 @@ function buildPandocArgs(opts: {
   input: string;
   output: string;
   header: string;
+  format: InputFormat;
   papersize: string;
   fontsize: string;
   margin: string;
   mainFont: string;
   monoFont: string;
+  shiftHeadings: boolean;
   toc: boolean;
   tocDepth: number;
   numberSections: boolean;
@@ -138,6 +336,9 @@ function buildPandocArgs(opts: {
     opts.input,
     "-o",
     opts.output,
+    // Explicit, so inline source (no extension) and .txt files are unambiguous.
+    "--from",
+    opts.format,
     "--pdf-engine=xelatex",
     `--include-in-header=${opts.header}`,
     "-V",
@@ -162,6 +363,9 @@ function buildPandocArgs(opts: {
   // since it ships no fontconfig system fonts.
   if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
   if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
+  // Promote every heading one level: the lone H1 becomes the document title
+  // (pandoc lifts it into metadata) and H2s become top-level sections.
+  if (opts.shiftHeadings) a.push("--shift-heading-level-by=-1");
   if (opts.toc) a.push("--toc", `--toc-depth=${opts.tocDepth}`);
   if (opts.numberSections) a.push("--number-sections");
   return a;
@@ -175,19 +379,57 @@ const server = new McpServer({ name: "mcp-latex", version: "1.0.0" });
 
 server.tool(
   "render_markdown_to_pdf",
-  "Render a Markdown document to a nicely-styled PDF using pandoc + xelatex " +
-    "(classic-but-tuned Palatino report: fancyhdr header/footer with 'Page N of M', " +
-    "subtle dark-blue links, A4, TOC, numbered sections). Runs natively (macOS " +
-    "fonts, can open in Skim) or in a Docker image (portable/reproducible).",
+  "Render a Markdown or Org document to a nicely-styled PDF using pandoc + " +
+    "xelatex. Styling comes from a `preset` named '<layout>-<type>' (e.g. " +
+    "'ista-report', 'eisvogel-newspaper'); call with an invalid preset to get " +
+    "the list of valid ones. Runs natively (macOS fonts, can open in Skim) or " +
+    "in a Docker image (portable/reproducible).",
   {
+    input_path: z
+      .string()
+      .optional()
+      .describe(
+        "Path to the input file (.md or .org). Provide this OR `input`. " +
+          "Alias: `markdown_path`.",
+      ),
+    input: z
+      .string()
+      .optional()
+      .describe(
+        "Inline document source. Provide this OR `input_path`. Alias: `markdown`.",
+      ),
+    input_format: z
+      .enum(["auto", "markdown", "org"])
+      .default("auto")
+      .describe(
+        "Input syntax. 'auto' infers from the file extension (.org -> org, " +
+          "anything else -> markdown) and defaults to markdown for inline input.",
+      ),
+    preset: z
+      .string()
+      .default(DEFAULT_PRESET)
+      .describe(
+        "Styling preset, '<layout>-<type>'. Layout controls fonts/colour/" +
+          "furniture, type controls structure. Any layout composes with any " +
+          "type; an invalid value returns the list of valid presets.",
+      ),
+    shift_headings: z
+      .enum(["auto", "true", "false"])
+      .default("auto")
+      .describe(
+        "Promote every heading one level. 'auto' does so when the document has " +
+          "exactly one top-level heading and something beneath it — that H1 is " +
+          "the document title, so it becomes the PDF title and the H2s become " +
+          "top-level sections instead of being nested under it.",
+      ),
     markdown_path: z
       .string()
       .optional()
-      .describe("Path to the input Markdown file. Provide this OR `markdown`."),
+      .describe("Deprecated alias for `input_path`."),
     markdown: z
       .string()
       .optional()
-      .describe("Inline Markdown source. Provide this OR `markdown_path`."),
+      .describe("Deprecated alias for `input`."),
     output_path: z
       .string()
       .optional()
@@ -263,6 +505,11 @@ server.tool(
   },
   async (args) => {
     const {
+      input_path,
+      input,
+      input_format,
+      preset,
+      shift_headings,
       markdown_path,
       markdown,
       output_path,
@@ -281,9 +528,17 @@ server.tool(
       open_in,
     } = args;
 
-    if (!markdown_path && markdown === undefined) {
-      return errText("Provide either `markdown_path` or `markdown`.");
+    // Accept the pre-preset argument names as aliases.
+    const srcPath = input_path ?? markdown_path;
+    const srcInline = input ?? markdown;
+
+    if (!srcPath && srcInline === undefined) {
+      return errText("Provide either `input_path` or `input`.");
     }
+
+    const resolved = await resolvePreset(preset);
+    if (!resolved.ok) return errText(resolved.error);
+    const { layout, type } = resolved;
 
     // Resolve the engine.
     let chosen: "native" | "docker";
@@ -315,11 +570,20 @@ server.tool(
 
     const scratch = await mkdtemp(join(tmpdir(), "mcp-latex-"));
     try {
+      // Resolve the input syntax before touching the filesystem: the inline
+      // scratch file needs the matching extension so pandoc reads it correctly.
+      const fmt: InputFormat =
+        input_format === "auto"
+          ? srcPath
+            ? formatFromPath(srcPath)
+            : "markdown"
+          : input_format;
+
       // Resolve/prepare the input file and final output path (host side).
       let inputFile: string;
       let outFile: string;
-      if (markdown_path) {
-        inputFile = resolve(markdown_path);
+      if (srcPath) {
+        inputFile = resolve(srcPath);
         if (!(await exists(inputFile))) {
           return errText(`Input not found: ${inputFile}`);
         }
@@ -330,14 +594,21 @@ server.tool(
               basename(inputFile, extname(inputFile)) + ".pdf",
             );
       } else {
-        inputFile = join(scratch, "document.md");
-        await writeFile(inputFile, markdown ?? "", "utf8");
+        inputFile = join(scratch, `document.${INPUT_FORMATS[fmt]}`);
+        await writeFile(inputFile, srcInline ?? "", "utf8");
         outFile = output_path ? resolve(output_path) : resolve("document.pdf");
       }
 
-      // Build header.tex from the template.
-      const tmpl = await readFile(TEMPLATE_PATH, "utf8");
-      const header = tmpl
+      // Compose header.tex: shared prelude, then the type partial, then the
+      // layout partial. Layout comes last so it can override the page furniture
+      // the type set up (rules, running heads, footer position).
+      const parts = await Promise.all([
+        readFile(COMMON_PATH, "utf8"),
+        readFile(join(TYPES_DIR, `${type}.tex.tmpl`), "utf8"),
+        readFile(join(LAYOUTS_DIR, `${layout}.tex.tmpl`), "utf8"),
+      ]);
+      const header = parts
+        .join("\n")
         .replace(/__TITLE__/g, texEscape(title))
         .replace(/__HEADER_RIGHT__/g, texEscape(header_right))
         .replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
@@ -346,12 +617,29 @@ server.tool(
 
       // Resolve the tri-state toc / number_sections. In 'auto', a document is
       // "simple" (no TOC, no numbering) when it has fewer than this many
-      // headings — a short doc reads better plain.
+      // headings — a short doc reads better plain. Some types are structurally
+      // wrong with a TOC (newspaper) and override 'auto' outright; an explicit
+      // 'true'/'false' from the caller still wins.
       const source =
-        markdown ?? (await readFile(inputFile, "utf8").catch(() => ""));
-      const headingCount = countHeadings(source);
-      const wantToc = resolveAuto(toc, headingCount);
-      const wantNumbers = resolveAuto(number_sections, headingCount);
+        srcInline ?? (await readFile(inputFile, "utf8").catch(() => ""));
+      const headingCount =
+        fmt === "org" ? countOrgHeadings(source) : countHeadings(source);
+      const shift =
+        shift_headings === "auto"
+          ? shouldShiftHeadings(source, fmt)
+          : shift_headings === "true";
+
+      const typeDefaults = TYPE_DEFAULTS[type] ?? {};
+      const wantToc =
+        toc === "auto"
+          ? typeDefaults.toc !== undefined
+            ? typeDefaults.toc
+            : tocMakesSense(source, fmt, toc_depth, shift)
+          : toc === "true";
+      const wantNumbers =
+        number_sections === "auto" && typeDefaults.numberSections !== undefined
+          ? typeDefaults.numberSections
+          : resolveAuto(number_sections, headingCount);
 
       let res: { code: number; stdout: string; stderr: string };
 
@@ -360,6 +648,8 @@ server.tool(
           input: inputFile,
           output: outFile,
           header: headerFile,
+          format: fmt,
+          shiftHeadings: shift,
           papersize,
           fontsize,
           margin,
@@ -372,13 +662,17 @@ server.tool(
         res = await run("pandoc", pandocArgs, dirname(inputFile));
       } else {
         // Docker: stage input + header inside `scratch`, mount it at /data,
-        // render to /data/out.pdf, copy the result to the host outFile.
-        const stagedInput = join(scratch, "input.md");
-        await copyFile(inputFile, stagedInput);
+        // render to /data/out.pdf, copy the result to the host outFile. The
+        // staged name keeps the source extension so pandoc's own format
+        // detection agrees with the explicit --from we pass.
+        const stagedName = `input.${INPUT_FORMATS[fmt]}`;
+        await copyFile(inputFile, join(scratch, stagedName));
         const pandocArgs = buildPandocArgs({
-          input: "/data/input.md",
+          input: `/data/${stagedName}`,
           output: "/data/out.pdf",
           header: "/data/header.tex",
+          format: fmt,
+          shiftHeadings: shift,
           papersize,
           fontsize,
           margin,
