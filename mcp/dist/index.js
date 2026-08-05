@@ -21162,6 +21162,8 @@ var DOCKER_IMAGE = "ghcr.io/gbastkowski/mcp-latex-tex:latest";
 var DOCKER_PLATFORM = "linux/amd64";
 var MAC_DEFAULT_MAIN = "Palatino";
 var MAC_DEFAULT_MONO = "Menlo";
+var LINUX_DEFAULT_MAIN = "TeX Gyre Pagella";
+var LINUX_DEFAULT_MONO = "DejaVu Sans Mono";
 var TEXBIN = "/Library/TeX/texbin";
 var ENV = {
   ...process.env,
@@ -21364,10 +21366,10 @@ server.tool(
     title: external_exports.string().default("").describe("Left running-header text (usually the document title)."),
     header_right: external_exports.string().default("").describe("Right running-header text, e.g. 'PRD'. Empty to omit."),
     main_font: external_exports.string().default(MAC_DEFAULT_MAIN).describe(
-      "Serif body font. The macOS default 'Palatino' is auto-swapped to 'TeX Gyre Pagella' under the docker engine."
+      "Serif body font. The macOS default 'Palatino' is auto-swapped to 'TeX Gyre Pagella' on Linux, and dropped for Latin Modern under the docker engine."
     ),
     mono_font: external_exports.string().default(MAC_DEFAULT_MONO).describe(
-      "Monospace font. The macOS default 'Menlo' is auto-swapped to 'DejaVu Sans Mono' under the docker engine."
+      "Monospace font. The macOS default 'Menlo' is auto-swapped to 'DejaVu Sans Mono' on Linux, and dropped for Latin Modern under the docker engine."
     ),
     papersize: external_exports.string().default("a4"),
     fontsize: external_exports.string().default("11pt"),
@@ -21435,8 +21437,16 @@ server.tool(
         );
       }
     }
-    const mainFont = chosen === "docker" && main_font === MAC_DEFAULT_MAIN ? "" : main_font;
-    const monoFont = chosen === "docker" && mono_font === MAC_DEFAULT_MONO ? "" : mono_font;
+    let mainFont = main_font;
+    let monoFont = mono_font;
+    if (main_font === MAC_DEFAULT_MAIN) {
+      if (chosen === "docker") mainFont = "";
+      else if (process.platform === "linux") mainFont = LINUX_DEFAULT_MAIN;
+    }
+    if (mono_font === MAC_DEFAULT_MONO) {
+      if (chosen === "docker") monoFont = "";
+      else if (process.platform === "linux") monoFont = LINUX_DEFAULT_MONO;
+    }
     const scratch = await mkdtemp(join(tmpdir(), "mcp-latex-"));
     try {
       const fmt = input_format === "auto" ? srcPath ? formatFromPath(srcPath) : "markdown" : input_format;
