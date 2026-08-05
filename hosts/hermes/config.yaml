@@ -1,0 +1,7 @@
+# Merge this under the top-level `mcp_servers` key of ~/.hermes/config.yaml.
+# `hermes mcp add` can do it interactively; this is the equivalent literal form.
+mcp_servers:
+  latex:
+    command: "node"
+    args: ["__MCP_LATEX_ROOT__/mcp/dist/index.js"]
+    enabled: true

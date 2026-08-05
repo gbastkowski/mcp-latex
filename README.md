@@ -88,6 +88,31 @@ Notable design points:
 - **Packaging** — the server is esbuild-bundled to a single `dist/index.js`
   with no runtime `node_modules`, so it loads with no install step.
 
+## Other MCP hosts (opencode, hermes)
+
+The server is a plain stdio MCP process with no Claude-specific API, so other
+hosts can use it directly. `hosts/install.sh` writes the host's config plus a
+ported skill/command, substituting the repo's absolute path (other hosts have no
+`${CLAUDE_PLUGIN_ROOT}`):
+
+```sh
+cd mcp && npm install && npm run build && cd ..   # bundle must exist first
+
+./hosts/install.sh opencode            # ./.opencode/ + ./opencode.json
+./hosts/install.sh opencode --global   # ~/.config/opencode/
+./hosts/install.sh hermes              # ~/.hermes/  (then /reload-mcp)
+```
+
+| host | MCP config | skill | command |
+|------|-----------|-------|---------|
+| Claude Code | `.claude-plugin/plugin.json` | `skills/latex-pdf/` | `/mcp-latex:render-pdf` |
+| opencode | `opencode.json` → `mcp.latex` | `.opencode/skills/latex-pdf/` | `/render-pdf` |
+| hermes | `~/.hermes/config.yaml` → `mcp_servers.latex` | `~/.hermes/skills/latex-pdf/` | `/latex-pdf` (skill) |
+
+If the target config already exists, the installer prints the block to merge
+rather than overwriting it. The templates live in `hosts/opencode/` and
+`hosts/hermes/` if you prefer to wire it up by hand.
+
 ## Prerequisites (native, macOS)
 
 ```sh
