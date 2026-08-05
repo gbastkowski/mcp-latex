@@ -36,17 +36,20 @@ Only the skill's manual-fallback path is localised — `__MCP_LATEX_ROOT__` is
 substituted with the repo path by `hosts/install.sh`.
 
 ```sh
-./hosts/install.sh opencode            # ./.opencode + ./opencode.json in $PWD
-./hosts/install.sh opencode --global   # ~/.config/opencode
-./hosts/install.sh hermes              # ~/.hermes  (then /reload-mcp)
+./hosts/install.sh opencode                         # ./.opencode + ./opencode.json in $PWD
+./hosts/install.sh opencode --global                # ~/.config/opencode
+./hosts/install.sh hermes                           # $HERMES_HOME or ~/.hermes
+./hosts/install.sh hermes --profile gunnar          # ~/.hermes/profiles/gunnar
 ```
 
 - **opencode** — `opencode.json` `mcp.latex` (`type: local`, `command` array);
   command → `commands/render-pdf.md`, skill → `skills/latex-pdf/SKILL.md`.
   Plural dir names are current; singular is legacy-compatible.
-- **hermes** — `~/.hermes/config.yaml` under `mcp_servers.latex`; skills live in
-  `~/.hermes/skills/` (agentskills.io standard, so SKILL.md ports as-is plus a
-  `version:` field). `hermes mcp add` is the interactive equivalent.
+- **hermes** — `$HERMES_HOME/config.yaml` under `mcp_servers.latex`; skills live in
+  `$HERMES_HOME/skills/` (agentskills.io standard, so SKILL.md ports as-is plus a
+  `version:` field). `$HERMES_HOME` is profile-aware: `~/.hermes` for the
+  default profile, `~/.hermes/profiles/<name>` for a named profile.
+  `hermes mcp add` is the interactive equivalent.
 
 The installer never rewrites an existing config in place: if `opencode.json`
 exists, or `config.yaml` already has `mcp_servers`, it prints the block to
