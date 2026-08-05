@@ -42,8 +42,13 @@ substituted with the repo path by `hosts/install.sh`.
 ```
 
 - **opencode** — `opencode.json` `mcp.latex` (`type: local`, `command` array);
-  command → `commands/render-pdf.md`, skill → `skills/latex-pdf/SKILL.md`.
+  command → `commands/latex-pdf.md`, skill → `skills/latex-pdf/SKILL.md`.
   Plural dir names are current; singular is legacy-compatible.
+
+  opencode's command namespace is flat (the filename *is* the command), so the
+  ports are prefixed `latex-` to group future siblings. Claude Code namespaces
+  plugin commands itself, so `commands/render-pdf.md` keeps its name rather
+  than becoming `/mcp-latex:latex-pdf`.
 - **hermes** — `~/.hermes/config.yaml` under `mcp_servers.latex`; skills live in
   `~/.hermes/skills/` (agentskills.io standard, so SKILL.md ports as-is plus a
   `version:` field). `hermes mcp add` is the interactive equivalent.

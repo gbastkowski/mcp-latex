@@ -110,7 +110,7 @@ exposes it as a `bin`:
 | host | MCP config | skill | command |
 |------|-----------|-------|---------|
 | Claude Code | `.claude-plugin/plugin.json` | `skills/latex-pdf/` | `/mcp-latex:render-pdf` |
-| opencode | `opencode.json` → `mcp.latex` | `.opencode/skills/latex-pdf/` | `/render-pdf` |
+| opencode | `opencode.json` → `mcp.latex` | `.opencode/skills/latex-pdf/` | `/latex-pdf` |
 | hermes | `~/.hermes/config.yaml` → `mcp_servers.latex` | `~/.hermes/skills/latex-pdf/` | `/latex-pdf` (skill) |
 
 If the target config already exists, the installer prints the block to merge

@@ -30,7 +30,7 @@ case "$HOST" in
       cfg="$PWD/opencode.json"
     fi
     mkdir -p "$dest/commands" "$dest/skills/latex-pdf"
-    subst "$ROOT/hosts/opencode/commands/render-pdf.md" > "$dest/commands/render-pdf.md"
+    subst "$ROOT/hosts/opencode/commands/latex-pdf.md" > "$dest/commands/latex-pdf.md"
     subst "$ROOT/hosts/opencode/skills/latex-pdf/SKILL.md" > "$dest/skills/latex-pdf/SKILL.md"
     if [ -e "$cfg" ]; then
       printf 'note: %s exists — merge the "mcp" block manually:\n\n' "$cfg" >&2
@@ -39,7 +39,7 @@ case "$HOST" in
       subst "$ROOT/hosts/opencode/opencode.json" > "$cfg"
       printf 'wrote %s\n' "$cfg"
     fi
-    printf 'wrote %s/commands/render-pdf.md\nwrote %s/skills/latex-pdf/SKILL.md\n' "$dest" "$dest"
+    printf 'wrote %s/commands/latex-pdf.md\nwrote %s/skills/latex-pdf/SKILL.md\n' "$dest" "$dest"
     ;;
 
   hermes)
