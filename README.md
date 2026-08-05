@@ -102,20 +102,23 @@ exposes it as a `bin`:
 `hosts/install.sh` writes that config plus a ported skill/command:
 
 ```sh
-./hosts/install.sh opencode            # ./.opencode/ + ./opencode.json
-./hosts/install.sh opencode --global   # ~/.config/opencode/
-./hosts/install.sh hermes              # ~/.hermes/  (then /reload-mcp)
+./hosts/install.sh opencode                         # ./.opencode/ + ./opencode.json
+./hosts/install.sh opencode --global                # ~/.config/opencode/
+./hosts/install.sh hermes                           # $HERMES_HOME or ~/.hermes/
+./hosts/install.sh hermes --profile gunnar          # ~/.hermes/profiles/gunnar/
 ```
 
 | host | MCP config | skill | command |
 |------|-----------|-------|---------|
 | Claude Code | `.claude-plugin/plugin.json` | `skills/latex-pdf/` | `/mcp-latex:render-pdf` |
 | opencode | `opencode.json` → `mcp.latex` | `.opencode/skills/latex-pdf/` | `/render-pdf` |
-| hermes | `~/.hermes/config.yaml` → `mcp_servers.latex` | `~/.hermes/skills/latex-pdf/` | `/latex-pdf` (skill) |
+| hermes | `$HERMES_HOME/config.yaml` → `mcp_servers.latex` | `$HERMES_HOME/skills/latex-pdf/` | `/latex-pdf` (skill) |
 
 If the target config already exists, the installer prints the block to merge
-rather than overwriting it. The templates live in `hosts/opencode/` and
-`hosts/hermes/` if you prefer to wire it up by hand.
+rather than overwriting it. For Hermes, `$HERMES_HOME` is profile-aware: it is
+`~/.hermes` for the default profile and `~/.hermes/profiles/<name>` for a named
+profile (or pass `--home` to override). The templates live in `hosts/opencode/`
+and `hosts/hermes/` if you prefer to wire it up by hand.
 
 ## Prerequisites (native, macOS)
 

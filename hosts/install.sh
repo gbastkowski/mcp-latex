@@ -1,28 +1,61 @@
 #!/usr/bin/env bash
 # Install the mcp-latex MCP server + skill into a non-Claude host.
 #
-#   ./hosts/install.sh opencode [--global]   # default: ./.opencode in $PWD
-#   ./hosts/install.sh hermes                # always ~/.hermes
+#   ./hosts/install.sh opencode [--global]              # default: ./.opencode in $PWD
+#   ./hosts/install.sh hermes [--profile NAME] [--home PATH]
 #
 # The MCP config launches the server with `npx -y github:gbastkowski/mcp-latex`,
 # so it needs no local checkout — npx fetches the committed bundle. Only the
 # skill's manual-fallback path is localised (__MCP_LATEX_ROOT__ -> this repo).
-# Re-runnable: existing files are overwritten, but hermes' config.yaml is only
-# appended to if it has no `latex:` MCP entry yet.
+# Re-runnable: existing skill/command files are overwritten, but hermes'
+# config.yaml is only appended to when it has no `mcp_servers:` block yet; an
+# existing mcp_servers block gets the latex snippet printed for manual merging.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST="${1:-}"
-SCOPE="${2:-}"
+[ $# -gt 0 ] && shift
+
+GLOBAL=false
+PROFILE=""
+HOME_OVERRIDE=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --global) GLOBAL=true ;;
+    --profile) PROFILE="${2:?--profile needs a name}"; shift ;;
+    --home) HOME_OVERRIDE="${2:?--home needs a path}"; shift ;;
+    *) printf 'error: unknown option: %s\n' "$1" >&2; exit 1 ;;
+  esac
+  shift
+done
 
 die() { printf 'error: %s\n' "$1" >&2; exit 1; }
 subst() { sed "s|__MCP_LATEX_ROOT__|$ROOT|g" "$1"; }
+
+hermes_home() {
+  if [ -n "$HOME_OVERRIDE" ]; then
+    printf '%s' "$HOME_OVERRIDE"
+  elif [ -n "$PROFILE" ]; then
+    if command -v hermes >/dev/null; then
+      cfg="$(hermes --profile "$PROFILE" config path 2>/dev/null || true)"
+      if [ -n "$cfg" ]; then
+        dirname "$cfg"
+        return
+      fi
+    fi
+    printf '%s' "$HOME/.hermes/profiles/$PROFILE"
+  elif [ -n "${HERMES_HOME:-}" ]; then
+    printf '%s' "$HERMES_HOME"
+  else
+    printf '%s' "$HOME/.hermes"
+  fi
+}
 
 command -v npx >/dev/null || die "npx not on PATH — install Node 18+"
 
 case "$HOST" in
   opencode)
-    if [ "$SCOPE" = "--global" ]; then
+    if [ "$GLOBAL" = true ]; then
       dest="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
       cfg="$dest/opencode.json"
     else
@@ -43,7 +76,7 @@ case "$HOST" in
     ;;
 
   hermes)
-    dest="$HOME/.hermes"
+    dest="$(hermes_home)"
     mkdir -p "$dest/skills/latex-pdf"
     subst "$ROOT/hosts/hermes/skills/latex-pdf/SKILL.md" > "$dest/skills/latex-pdf/SKILL.md"
     printf 'wrote %s/skills/latex-pdf/SKILL.md\n' "$dest"
@@ -66,6 +99,6 @@ case "$HOST" in
     ;;
 
   *)
-    die "usage: $0 {opencode|hermes} [--global]"
+    die "usage: $0 {opencode [--global]|hermes [--profile NAME] [--home PATH]}"
     ;;
 esac
