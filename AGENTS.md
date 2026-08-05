@@ -17,6 +17,36 @@ server.
   maps, table-wrap fix). Placeholders `__TITLE__`, `__HEADER_RIGHT__`,
   `__LINK_COLOR__` are substituted at render time.
 - `docker/Dockerfile` — custom TeX image `ghcr.io/gbastkowski/mcp-latex-tex`.
+- `hosts/` — ports for non-Claude MCP hosts (opencode, hermes) + `install.sh`.
+
+## Non-Claude hosts (`hosts/`)
+
+The MCP server itself is host-agnostic: plain stdio, no Claude APIs, and it
+resolves `assets/header.tex.tmpl` relative to `import.meta.url`, so any
+launcher works. Only the **launch path** is Claude-specific — other hosts have
+no `${CLAUDE_PLUGIN_ROOT}`, so their configs need an absolute path. The
+templates carry a `__MCP_LATEX_ROOT__` placeholder that `hosts/install.sh`
+substitutes with the repo path.
+
+```sh
+./hosts/install.sh opencode            # ./.opencode + ./opencode.json in $PWD
+./hosts/install.sh opencode --global   # ~/.config/opencode
+./hosts/install.sh hermes              # ~/.hermes  (then /reload-mcp)
+```
+
+- **opencode** — `opencode.json` `mcp.latex` (`type: local`, `command` array);
+  command → `commands/render-pdf.md`, skill → `skills/latex-pdf/SKILL.md`.
+  Plural dir names are current; singular is legacy-compatible.
+- **hermes** — `~/.hermes/config.yaml` under `mcp_servers.latex`; skills live in
+  `~/.hermes/skills/` (agentskills.io standard, so SKILL.md ports as-is plus a
+  `version:` field). `hermes mcp add` is the interactive equivalent.
+
+The installer never rewrites an existing config in place: if `opencode.json`
+exists, or `config.yaml` already has `mcp_servers`, it prints the block to
+stderr for manual merging instead. Re-running is safe.
+
+Keep the three SKILL.md copies in sync when editing `skills/latex-pdf/SKILL.md`
+— the ports differ only in frontmatter and two host-neutral wording fixes.
 
 ## Build / test
 

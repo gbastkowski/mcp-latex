@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "latex": {
+      "type": "local",
+      "command": ["node", "__MCP_LATEX_ROOT__/mcp/dist/index.js"],
+      "enabled": true
+    }
+  }
+}
