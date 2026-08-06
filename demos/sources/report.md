@@ -115,7 +115,7 @@ Long identifiers wrap at underscores in table cells:
 
 Rendering from the editor is a single call:
 
-```commonlisp
+```elisp
 (defun ingest-render (file)
   "Render FILE via the mcp-latex server."
   (interactive "fFile: ")

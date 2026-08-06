@@ -37,7 +37,7 @@ const DEFAULT_PRESET = "classic-report";
 // handshake and appended to every render result, so it is possible to tell which
 // build actually produced a PDF — npx caches git installs, so the version in the
 // result is the only reliable check that a new one is being used.
-const SERVER_VERSION = "1.3.2";
+const SERVER_VERSION = "1.3.3";
 
 // Per-type overrides for the tri-state defaults. A type that is structurally
 // wrong with a TOC says so here; the LaTeX partial cannot refuse pandoc's
@@ -314,6 +314,41 @@ function tocMakesSense(
 // Input formats we accept. pandoc infers from the extension too, but being
 // explicit lets inline source (which has no extension) pick a format, and lets
 // a .txt/.text file be treated as either.
+// Fence languages skylighting does not know, mapped to the closest grammar it
+// does. Without this a block tagged `elisp` gets no highlighting at all and says
+// so nowhere — the PDF just comes out uniformly grey (issue #6). commonlisp shares
+// the s-expression syntax, so keywords, strings, numerals and comments all land;
+// only Emacs-only defining forms (defcustom, cl-defstruct) stay plain.
+//
+// The rewrite happens on a COPY of the input, never the author's file: the source
+// stays honest about what the code actually is.
+const LANG_ALIASES: Record<string, string> = {
+  elisp: "commonlisp",
+  "emacs-lisp": "commonlisp",
+  emacslisp: "commonlisp",
+};
+
+// Rewrite fence info strings whose language has no highlighter. Handles both
+// Markdown fences (``` / ~~~, with optional attribute braces) and org src blocks.
+function mapFenceLanguages(src: string, fmt: InputFormat): string {
+  if (fmt === "org") {
+    return src.replace(
+      /^([ \t]*#\+begin_src[ \t]+)([A-Za-z0-9_+-]+)/gim,
+      (whole, head, lang) => {
+        const to = LANG_ALIASES[lang.toLowerCase()];
+        return to ? `${head}${to}` : whole;
+      },
+    );
+  }
+  return src.replace(
+    /^([ \t]*(?:```+|~~~+)[ \t]*\{?[ \t]*\.?)([A-Za-z0-9_+-]+)/gm,
+    (whole, head, lang) => {
+      const to = LANG_ALIASES[lang.toLowerCase()];
+      return to ? `${head}${to}` : whole;
+    },
+  );
+}
+
 const INPUT_FORMATS = { markdown: "md", org: "org" } as const;
 type InputFormat = keyof typeof INPUT_FORMATS;
 
@@ -845,6 +880,21 @@ server.tool(
       // 'true'/'false' from the caller still wins.
       const source =
         srcInline ?? (await readFile(inputFile, "utf8").catch(() => ""));
+
+      // Map fence languages skylighting cannot highlight. Only stage a rewritten
+      // copy when something actually changed, so an unaffected document still
+      // renders straight from the author's file and relative image paths keep
+      // resolving against its own directory.
+      // pandoc resolves relative image paths against its working directory, so
+      // that stays the author's directory even when the file it reads is a copy.
+      const inputDir = dirname(inputFile);
+      const mapped = mapFenceLanguages(source, fmt);
+      if (mapped !== source) {
+        const staged = join(scratch, `mapped.${INPUT_FORMATS[fmt]}`);
+        await writeFile(staged, mapped, "utf8");
+        inputFile = staged;
+      }
+
       const headingCount =
         fmt === "org" ? countOrgHeadings(source) : countHeadings(source);
       const shift =
@@ -901,7 +951,7 @@ server.tool(
           tocDepth: effectiveTocDepth,
           numberSections: wantNumbers,
         });
-        res = await run("pandoc", pandocArgs, dirname(inputFile));
+        res = await run("pandoc", pandocArgs, inputDir);
       } else {
         // Docker: stage input + header inside `scratch`, mount it at /data,
         // render to /data/out.pdf, copy the result to the host outFile. The

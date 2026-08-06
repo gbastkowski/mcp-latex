@@ -113,6 +113,16 @@ Convert a page to PNG for visual review: `pdftoppm -png -r 110 -f N -l N in.pdf 
   sections. A total-heading threshold gave a TOC to one-page notes with a single
   section and four subsections. It also accounts for `shift_headings`, since
   promotion changes which source levels land in the TOC.
+- The KOMA classes define `\subtitle` themselves, so pandoc's `\providecommand`
+  for it is a no-op and the value lands in KOMA's variable, which only KOMA's
+  `\maketitle` reads — and `titling` has replaced that. The title block emits
+  `\@subtitle` explicitly, guarded by a `\providecommand` so the non-KOMA classes
+  skip it and pandoc's own handling still runs (issue #5).
+- skylighting has no Emacs Lisp grammar, so a fence tagged `elisp` came out
+  entirely unhighlighted with no warning. `LANG_ALIASES` maps `elisp`,
+  `emacs-lisp` and `emacslisp` to `commonlisp` in a staged COPY of the input, so
+  the author's file keeps saying what the code really is (issue #6). pandoc's cwd
+  stays the original directory, or relative image paths would break.
 - `sectsty` and `titlesec` are NOT in BasicTeX — layouts patch headings with
   `\@startsection` instead.
 - Colouring a heading needs `\let\normalcolor\relax` in the style argument:

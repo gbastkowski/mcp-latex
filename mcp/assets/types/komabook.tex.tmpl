@@ -67,22 +67,30 @@
 \makeatletter
 \newcommand{\mcpl@logo}{__LOGO_PATH__}
 \newcommand{\mcpl@stamp}{__DOC_STAMP__}
-% \posttitle has to be set whenever EITHER a logo or a stamp is present, and it
-% must close whatever \pretitle opened — hence the four-way split rather than two
-% independent \ifx blocks.
-\ifx\mcpl@logo\@empty
-  \ifx\mcpl@stamp\@empty\else
-    \posttitle{\par\end{center}%
-      \begin{center}\small\mcpl@stamp\end{center}\vskip 0.5em}
+% The KOMA classes define \subtitle themselves, so pandoc's \providecommand for it
+% is a no-op and its \subtitle{...} stores the value in KOMA's own variable — which
+% only KOMA's \maketitle reads, and titling has replaced that. The subtitle was
+% captured and then silently dropped (issue #5). Emit it here.
+%
+% \providecommand gives the non-KOMA classes an empty \@subtitle, so the branch
+% below is simply skipped there and pandoc's own subtitle handling still runs — no
+% double printing.
+\providecommand{\@subtitle}{}
+\newcommand{\mcpl@subtitleblock}{%
+  \ifx\@subtitle\@empty\else
+    \begin{center}\large\@subtitle\end{center}\vskip 0.2em
   \fi
-\else
+}
+\newcommand{\mcpl@stampblock}{%
+  \ifx\mcpl@stamp\@empty\else
+    \begin{center}\small\mcpl@stamp\end{center}
+  \fi
+}
+% Each block guards itself, so \posttitle is set unconditionally: it closes the
+% centre \pretitle opened (or titling's own) and then emits whatever exists.
+\ifx\mcpl@logo\@empty\else
   \pretitle{\begin{center}\includegraphics[height=48pt]{\mcpl@logo}\\[1.2em]%
     \LARGE}
-  \ifx\mcpl@stamp\@empty
-    \posttitle{\par\end{center}\vskip 0.5em}
-  \else
-    \posttitle{\par\end{center}%
-      \begin{center}\small\mcpl@stamp\end{center}\vskip 0.5em}
-  \fi
 \fi
+\posttitle{\par\end{center}\mcpl@subtitleblock\mcpl@stampblock\vskip 0.5em}
 \makeatother

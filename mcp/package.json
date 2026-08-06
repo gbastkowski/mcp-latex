@@ -1,6 +1,6 @@
 {
   "name": "mcp-latex-server",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "MCP server that renders Markdown to a classic-but-tuned PDF via pandoc + xelatex.",
   "type": "module",
   "bin": {

@@ -21129,7 +21129,7 @@ var COMMON_PATH = join(ASSETS_DIR, "common.tex.tmpl");
 var LAYOUTS_DIR = join(ASSETS_DIR, "layouts");
 var TYPES_DIR = join(ASSETS_DIR, "types");
 var DEFAULT_PRESET = "classic-report";
-var SERVER_VERSION = "1.3.2";
+var SERVER_VERSION = "1.3.3";
 var TYPE_DEFAULTS = {
   // A newspaper has no table of contents and no numbered sections.
   newspaper: { toc: false, numberSections: false },
@@ -21298,6 +21298,29 @@ function tocMakesSense(src, fmt, tocDepth, shifted) {
   }
   const topLevel = counts[offset] ?? 0;
   return entries >= MIN_TOC_ENTRIES && topLevel >= MIN_TOC_TOP_LEVEL;
+}
+var LANG_ALIASES = {
+  elisp: "commonlisp",
+  "emacs-lisp": "commonlisp",
+  emacslisp: "commonlisp"
+};
+function mapFenceLanguages(src, fmt) {
+  if (fmt === "org") {
+    return src.replace(
+      /^([ \t]*#\+begin_src[ \t]+)([A-Za-z0-9_+-]+)/gim,
+      (whole, head, lang) => {
+        const to = LANG_ALIASES[lang.toLowerCase()];
+        return to ? `${head}${to}` : whole;
+      }
+    );
+  }
+  return src.replace(
+    /^([ \t]*(?:```+|~~~+)[ \t]*\{?[ \t]*\.?)([A-Za-z0-9_+-]+)/gm,
+    (whole, head, lang) => {
+      const to = LANG_ALIASES[lang.toLowerCase()];
+      return to ? `${head}${to}` : whole;
+    }
+  );
 }
 var INPUT_FORMATS = { markdown: "md", org: "org" };
 function formatFromPath(p) {
@@ -21576,6 +21599,13 @@ server.tool(
       const headerFile = join(scratch, "header.tex");
       await writeFile(headerFile, header, "utf8");
       const source = srcInline ?? await readFile(inputFile, "utf8").catch(() => "");
+      const inputDir = dirname(inputFile);
+      const mapped = mapFenceLanguages(source, fmt);
+      if (mapped !== source) {
+        const staged = join(scratch, `mapped.${INPUT_FORMATS[fmt]}`);
+        await writeFile(staged, mapped, "utf8");
+        inputFile = staged;
+      }
       const headingCount = fmt === "org" ? countOrgHeadings(source) : countHeadings(source);
       const shift = shift_headings === "auto" ? shouldShiftHeadings(source, fmt) : shift_headings === "true";
       const typeClass = TYPE_CLASSES[type];
@@ -21607,7 +21637,7 @@ server.tool(
           tocDepth: effectiveTocDepth,
           numberSections: wantNumbers
         });
-        res = await run("pandoc", pandocArgs, dirname(inputFile));
+        res = await run("pandoc", pandocArgs, inputDir);
       } else {
         const stagedName = `input.${INPUT_FORMATS[fmt]}`;
         await copyFile(inputFile, join(scratch, stagedName));
