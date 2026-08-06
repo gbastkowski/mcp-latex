@@ -117,9 +117,16 @@ Convert a page to PNG for visual review: `pdftoppm -png -r 110 -f N -l N in.pdf 
 - Redefining `\maketitle` to use `\@title`/`\@date` must sit inside
   `\makeatletter`…`\makeatother`, else xelatex dies with "You can't use
   `\spacefactor` in vertical mode".
-- `multicol` is deliberately unused: pandoc emits tables as `longtable`, which
-  hard-errors inside `multicols` ("longtable not in 1-column mode"), and code
-  blocks clip at a narrow measure.
+- `multicol` is used by `newspaper` (three columns, landscape) and needs two
+  workarounds: pandoc emits tables as `longtable`, which hard-errors inside
+  `multicols` ("longtable not in 1-column mode"), so `longtable` is aliased to
+  `tabular`; and `\maketitle` opens the environment itself, after the masthead, or
+  the nameplate is trapped in column one. The closing `\end{multicols}` is guarded
+  by a switch, since a titleless document emits no `\maketitle`.
+  It was tried at A4 *portrait* first and reverted — two columns there left a
+  measure too narrow for prose or code. Landscape is what makes it viable.
+- Inside `multicols`, `\textwidth` is still the full page: box a heading with
+  `\linewidth` or it overflows its column.
 
 ## Presets
 
@@ -129,15 +136,30 @@ so it can override the furniture the type set up. Adding a file to
 `assets/layouts/` or `assets/types/` is enough; there is no registry to update
 and no code change. An invalid preset returns the full list of valid combinations.
 
-`TYPE_DEFAULTS` in `mcp/src/index.ts` lets a type override the `auto` tri-states
-where the LaTeX cannot — a `newspaper` has to refuse the TOC there, because a
-partial cannot decline pandoc's `--toc` flag.
+Three per-type tables in `mcp/src/index.ts` carry what a LaTeX partial cannot set,
+because pandoc passes these before any header include is read:
+`TYPE_DEFAULTS` (the `auto` tri-states), `TYPE_CLASSES` (documentclass,
+classoption, tocDepth, topLevelDivision) and `TYPE_FONTS` (body serif, applied
+only when the caller left `main_font` at its default).
 
-Demos: `scratchpad/render-demos.py` renders all 6 presets **through the server**
+`--top-level-division=chapter` matters for `reference`: without it pandoc's top
+level stays `\section`, no `\chapter` is ever issued, and every heading numbers
+from a zero chapter counter as `0.1`.
+
+A `newspaper` has to refuse the TOC in `TYPE_DEFAULTS`, because a partial cannot
+decline pandoc's `--toc` flag.
+
+Demos: `scratchpad/render-demos.py` renders all 9 presets **through the server**
 over JSON-RPC (not by assembling pandoc calls, which would skip preset
 composition, type defaults and heading shift). Reports and newspapers use
 different source documents, since a technical doc says nothing about whether a
-masthead works.
+masthead works, and a four-page report reveals nothing about chapter openings or
+twoside running heads.
+
+`SERVER_VERSION` in `mcp/src/index.ts` must be kept in step with both
+`package.json` files. It is reported in the MCP handshake and appended to every
+render result — npx caches git installs, so that string is the only reliable way
+to confirm which build produced a PDF.
 
 ## Config wiring
 

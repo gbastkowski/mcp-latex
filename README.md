@@ -58,8 +58,16 @@ an invalid name returns the list of valid ones.
 
 | type | structure |
 |---|---|
-| `report` | running header, `N/M` footer, airy paragraph spacing. TOC when useful |
-| `newspaper` | retro Didot masthead with dateline, indented paragraphs, no TOC |
+| `report` | `article`. Running header, `N/M` footer, airy spacing. TOC when useful |
+| `newspaper` | `article` landscape, three columns. Didot masthead, Kapitälchen headlines, no TOC |
+| `reference` | `report` twoside. Chapters, mirrored running heads, three-level TOC always on |
+
+`reference` is for long-form documentation — tens to hundreds of pages. It uses
+`\chapter`, so numbering is chapter-scoped (`3.1`, not one continuous run), and
+a top-level heading in the source becomes a chapter.
+
+Types may also set the document class, class options and body font — a newspaper
+is not set in a book face, and `article` has no `\chapter` for a reference to use.
 
 Some types override the `auto` defaults — a newspaper never gets a TOC or
 numbered sections, whatever the heading count. An explicit `true`/`false` still

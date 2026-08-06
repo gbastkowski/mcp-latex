@@ -21128,6 +21128,7 @@ var COMMON_PATH = join(ASSETS_DIR, "common.tex.tmpl");
 var LAYOUTS_DIR = join(ASSETS_DIR, "layouts");
 var TYPES_DIR = join(ASSETS_DIR, "types");
 var DEFAULT_PRESET = "classic-report";
+var SERVER_VERSION = "1.1.0";
 var TYPE_DEFAULTS = {
   // A newspaper has no table of contents and no numbered sections.
   newspaper: { toc: false, numberSections: false },
@@ -21384,7 +21385,7 @@ function buildPandocArgs(opts) {
   return a;
 }
 var TLMGR_HINT = "Hint: BasicTeX is minimal \u2014 if a .sty is missing, run `sudo tlmgr install <pkg>` (fancyhdr lastpage newunicodechar soul xcolor).";
-var server = new McpServer({ name: "mcp-latex", version: "1.0.0" });
+var server = new McpServer({ name: "mcp-latex", version: SERVER_VERSION });
 server.tool(
   "render_markdown_to_pdf",
   "Render a Markdown or Org document to a nicely-styled PDF using pandoc + xelatex. Styling comes from a `preset` named '<layout>-<type>' (e.g. 'ista-report', 'eisvogel-newspaper'); call with an invalid preset to get the list of valid ones. Runs natively (macOS fonts, can open in Skim) or in a Docker image (portable/reproducible).",
@@ -21609,7 +21610,7 @@ ${res.stdout}`
         content: [
           {
             type: "text",
-            text: `Rendered PDF: ${outFile} (engine: ${chosen})` + (open_in !== "none" ? `, opened in ${open_in}` : "")
+            text: `Rendered PDF: ${outFile} (preset: ${preset}, engine: ${chosen}, mcp-latex ${SERVER_VERSION})` + (open_in !== "none" ? `, opened in ${open_in}` : "")
           }
         ]
       };

@@ -31,6 +31,12 @@ const TYPES_DIR = join(ASSETS_DIR, "types");
 // not itself contain a dash, so the split is on the FIRST dash.
 const DEFAULT_PRESET = "classic-report";
 
+// Keep in step with package.json / mcp/package.json. Reported by the MCP
+// handshake and appended to every render result, so it is possible to tell which
+// build actually produced a PDF — npx caches git installs, so the version in the
+// result is the only reliable check that a new one is being used.
+const SERVER_VERSION = "1.1.0";
+
 // Per-type overrides for the tri-state defaults. A type that is structurally
 // wrong with a TOC says so here; the LaTeX partial cannot refuse pandoc's
 // --toc on its own. An explicit caller argument still wins.
@@ -457,7 +463,7 @@ const TLMGR_HINT =
   "Hint: BasicTeX is minimal — if a .sty is missing, run " +
   "`sudo tlmgr install <pkg>` (fancyhdr lastpage newunicodechar soul xcolor).";
 
-const server = new McpServer({ name: "mcp-latex", version: "1.0.0" });
+const server = new McpServer({ name: "mcp-latex", version: SERVER_VERSION });
 
 server.tool(
   "render_markdown_to_pdf",
@@ -831,7 +837,8 @@ server.tool(
           {
             type: "text",
             text:
-              `Rendered PDF: ${outFile} (engine: ${chosen})` +
+              `Rendered PDF: ${outFile} ` +
+              `(preset: ${preset}, engine: ${chosen}, mcp-latex ${SERVER_VERSION})` +
               (open_in !== "none" ? `, opened in ${open_in}` : ""),
           },
         ],
