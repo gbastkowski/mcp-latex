@@ -54,5 +54,12 @@
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\headrule}{\hbox to\headwidth{\color{eisvogelRule}\leaders\hrule height \headrulewidth\hfill}}
 
-\fancyhead[L]{\small\scshape __TITLE__}
-\fancyhead[R]{\small\scshape __HEADER_RIGHT__}
+% The running-head typeface goes through \newspaperheadfont where the newspaper
+% type provides it, so the folio this layout does not set survives. \fancyhead is
+% only set directly for the types that have no such hook.
+\providecommand{\newspaperheadfont}{}
+\renewcommand{\newspaperheadfont}{\small\sffamily}
+\ifdefined\headingsclaimed\else
+\fancyhead[L]{\small\sffamily __TITLE__}
+\fancyhead[R]{\small\sffamily __HEADER_RIGHT__}
+\fi

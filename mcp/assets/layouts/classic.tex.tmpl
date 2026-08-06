@@ -21,3 +21,8 @@
   \framebox[\dimexpr\linewidth-2\fboxrule-2\fboxsep\relax][l]{%
     \parbox{\dimexpr\linewidth-4\fboxrule-4\fboxsep\relax}{\strut #1\strut}}%
 }
+
+% Classic wants the faintest rule of the three under the running head — the
+% newspaper type's 0.2pt is already a hairline, and this takes it lower still so
+% the head reads as a caption rather than a banner.
+\renewcommand{\headrulewidth}{0.1pt}

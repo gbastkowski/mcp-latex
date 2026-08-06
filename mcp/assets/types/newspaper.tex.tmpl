@@ -20,7 +20,10 @@
 % against the top edge of the sheet. `includehead` folds the header into the
 % margin geometry so it gets its own strip, and `headsep` keeps it off the
 % masthead below.
-\geometry{landscape,includehead,headsep=8pt}
+% top=0.5cm pulls the running head close to the paper edge while `includehead`
+% keeps it inside the computed margin so it is never clipped; headsep then holds
+% the body off it.
+\geometry{landscape,includehead,top=0.5cm,headsep=7pt}
 
 % Three-column body. multicol (not \twocolumn) balances the final page and
 % cooperates with pandoc's output.
@@ -85,6 +88,10 @@
     \rule{\textwidth}{0.4pt}
   \end{center}
   \vspace{0.8em}
+  % This \maketitle is a full redefinition, so it never issues the
+  % \thispagestyle{plain} the stock one does — page one stayed on `fancy` and kept
+  % the running head and folio. `plain` is blanked below, so this empties it.
+  \thispagestyle{plain}%
   % Open the columns AFTER the nameplate, so the masthead spans the full page
   % width instead of being trapped in column one.
   \begin{multicols}{3}%
@@ -175,19 +182,39 @@
 \makeatother
 
 % --- Page furniture ---------------------------------------------------------
+% A newspaper carries no footer at all: the front page is the nameplate's, and on
+% the pages after it the title and the folio both belong up top, the way a
+% broadsheet sets them. Title left, page number right, a thin rule beneath.
+% Heavier rules belong to the masthead; repeating them every page reads as noise.
+%
+% \newspaperheadfont is the per-layout hook for the running-head typeface. It
+% defaults to a light sans, which reads as furniture rather than competing with
+% the Didone body — the treatment the ista layout had and the others lacked.
+% Layouts may override it; they must NOT override \fancyhead itself, or the folio
+% on the right is lost.
+\providecommand{\newspaperheadfont}{\small\sffamily}
 \pagestyle{fancy}
 \fancyhf{}
-% Thin rule under the running head. Heavier weights belong to the masthead;
-% repeating them on every page reads as noise. Layouts may override.
-\renewcommand{\headrulewidth}{0.4pt}
+% Hairline: at this size a 0.4pt rule still reads as a border under a light sans
+% head. Layouts may set their own weight.
+\renewcommand{\headrulewidth}{0.2pt}
 \renewcommand{\footrulewidth}{0pt}
-\fancyhead[L]{\small\scshape __TITLE__}
-\fancyhead[R]{\small\scshape __HEADER_RIGHT__}
-\fancyfoot[C]{\small \thepage/\pageref{LastPage}}
+\fancyhead[L]{\newspaperheadfont __TITLE__}
+\fancyhead[R]{\newspaperheadfont \thepage/\pageref{LastPage}}
+
+% Push the running head towards the top edge. geometry owns the vertical layout
+% here (includehead, below), so setting \topmargin by hand would just be undone —
+% the top margin is narrowed in the \geometry call instead, and only \headheight
+% and \headsep are set directly.
+\setlength{\headheight}{13pt}
+
+% Page one gets nothing — no running head, no rule, no folio. The nameplate
+% already says what the paper is and the page number is obvious. LaTeX switches to
+% `plain` for the page holding \maketitle, so blanking `plain` is what empties the
+% first page specifically.
 \fancypagestyle{plain}{%
   \fancyhf{}%
-  \fancyfoot[C]{\small \thepage/\pageref{LastPage}}%
-  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\headrulewidth}{0pt}%
   \renewcommand{\footrulewidth}{0pt}%
 }
 

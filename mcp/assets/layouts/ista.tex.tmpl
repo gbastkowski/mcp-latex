@@ -56,8 +56,16 @@
 % navy links and the coloured running heads instead.
 \renewcommand{\headrulewidth}{0pt}
 
+% This layout's running head is the one whose weight Gunnar wanted everywhere:
+% a light sans, not small caps. Feed it through the hook so the newspaper type
+% keeps the folio it puts on the right, and only set \fancyhead directly for
+% types that provide no hook.
+\providecommand{\newspaperheadfont}{}
+\renewcommand{\newspaperheadfont}{\small\sffamily\color{istaNavy}}
+\ifdefined\headingsclaimed\else
 \fancyhead[L]{\small\sffamily\color{istaNavy}__TITLE__}
 \fancyhead[R]{\small\sffamily\color{istaGray}__HEADER_RIGHT__}
+\fi
 
 % Newspaper headlines get a ruled box, in the brand navy. The hook only exists
 % under the newspaper type, so declare-then-override — a bare \renewcommand would
