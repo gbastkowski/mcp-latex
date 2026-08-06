@@ -21,7 +21,11 @@
 \fancyhead[L]{\small\itshape\nouppercase{\leftmark}}
 \fancyhead[R]{\small\itshape\nouppercase{\rightmark}}
 \fancyfoot[R]{\small\thepage}
-\fancyfoot[L]{\small __TITLE__}
+% Title, then the creation date and version the server substitutes.
+% The stamp is plain substituted text, so it cannot be tested with \ifx —
+% the server emits the separator as part of __DOC_STAMP__ when there is
+% something to separate, and an empty string otherwise.
+\fancyfoot[L]{\small __TITLE____DOC_STAMP_SUFFIX__}
 \fancypagestyle{plain}{%
   \fancyhf{}%
   \fancyfoot[R]{\small\thepage}%

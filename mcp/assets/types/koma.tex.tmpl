@@ -22,9 +22,13 @@
 \fancyhead[L]{\small\itshape __TITLE__}
 \fancyhead[R]{\small\itshape __HEADER_RIGHT__}
 \fancyfoot[R]{\small \thepage/\pageref{LastPage}}
+% Creation date (and version, if given) opposite the folio. __DOC_STAMP__ is
+% substituted by the server and collapses to nothing when both are absent.
+\fancyfoot[L]{\small __DOC_STAMP__}
 \fancypagestyle{plain}{%
   \fancyhf{}%
   \fancyfoot[R]{\small \thepage/\pageref{LastPage}}%
+  \fancyfoot[L]{\small __DOC_STAMP__}%
   \renewcommand{\headrulewidth}{0pt}%
   \renewcommand{\footrulewidth}{0pt}%
 }

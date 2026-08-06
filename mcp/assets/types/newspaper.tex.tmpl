@@ -11,6 +11,7 @@
 \usepackage{lastpage}
 \usepackage{fontspec}
 \usepackage{multicol}
+\usepackage{graphicx}
 
 % geometry is already loaded by pandoc with the margin variable, so reuse it
 % rather than re-passing options: \geometry applies landscape to the text block.
@@ -89,17 +90,34 @@
 % \makeatletter … \makeatother. Without it `\@` is parsed as the end-of-sentence
 % macro and xelatex dies with "You can't use \spacefactor in vertical mode".
 \makeatletter
+% Defined once here, not inside \maketitle: a \newcommand in there would fail if
+% \maketitle were ever called twice.
+\newcommand{\newspaper@logo}{__LOGO_PATH__}
 \renewcommand{\maketitle}{%
   \begin{center}
     % Thick rule over thin — the classic masthead sandwich.
     \rule{\textwidth}{1.6pt}\\[-0.35em]
     \rule{\textwidth}{0.4pt}\\[0.55em]
-    {\mastheadfont\fontsize{40}{44}\selectfont \@title}\\[0.5em]
+    % Nameplate, optionally flanked by a device. __LOGO_PATH__ is substituted with
+    % the caller's `logo_path`, or left empty — a paper without a logo just gets
+    % the words, so the box collapses rather than leaving a gap.
+    \ifx\newspaper@logo\@empty
+      {\mastheadfont\fontsize{40}{44}\selectfont \@title}\\[0.5em]
+    \else
+      \makebox[\textwidth]{%
+        \includegraphics[height=42pt]{\newspaper@logo}\hfill
+        {\mastheadfont\fontsize{40}{44}\selectfont \@title}\hfill
+        \includegraphics[height=42pt]{\newspaper@logo}}\\[0.5em]
+    \fi
     \rule{\textwidth}{0.4pt}\\[-0.3em]
     \rule{\textwidth}{1.6pt}\\[0.35em]
     % Dateline strip: small caps, widely spaced, the way a broadsheet sets it.
     {\footnotesize\scshape
-      \ifx\@date\@empty Late Edition\else\@date\fi
+      % The document's own date leads. When it has one, only the version follows —
+      % printing the server's date as well showed the date twice.
+      % The document's own date leads; the server's stamp (version, and the date
+      % when the document declares none) follows it.
+      \ifx\@date\@empty __DOC_STAMP__\else\@date __DOC_VERSION_SUFFIX__\fi
       \hfill Vol.~I, No.~1 \hfill Price Twopence}\\[-0.2em]
     \rule{\textwidth}{0.4pt}
   \end{center}

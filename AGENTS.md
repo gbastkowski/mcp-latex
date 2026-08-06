@@ -170,6 +170,15 @@ type defaults and heading shift. See `demos/README.md`. It asserts the preset th
 server echoes back, because omitting the `preset` argument silently falls back to
 `classic-report` and still reports success.
 
+Every type prints a creation date and, when given, a version. `doc_date` defaults
+to the INPUT FILE's mtime rather than the wall clock, so re-rendering an unchanged
+document is reproducible. Three placeholders carry it: `__DOC_STAMP__` (bare),
+`__DOC_STAMP_SUFFIX__` (with a leading separator, for furniture that already has
+text) and `__DOC_VERSION_SUFFIX__` (version only, for the newspaper dateline,
+which prints the document's own date and showed it twice otherwise). The separator
+travels with the value so the partials need no conditional — substituted text
+cannot be tested with `\ifx`.
+
 `SERVER_VERSION` in `mcp/src/index.ts` must be kept in step with all three
 manifests: `package.json`, `mcp/package.json` and `.claude-plugin/plugin.json`. It is reported in the MCP handshake and appended to every
 render result — npx caches git installs, so that string is the only reliable way

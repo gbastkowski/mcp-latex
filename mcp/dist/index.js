@@ -21116,7 +21116,8 @@ import {
   rm,
   access,
   copyFile,
-  readdir
+  readdir,
+  stat
 } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21423,6 +21424,15 @@ server.tool(
     preset: external_exports.string().default(DEFAULT_PRESET).describe(
       "Styling preset, '<layout>-<type>'. Layout controls fonts/colour/furniture, type controls structure. Any layout composes with any type; an invalid value returns the list of valid presets."
     ),
+    logo_path: external_exports.string().default("").describe(
+      "Path to an image used as the newspaper masthead device, flanking the nameplate. Ignored by every other type. Empty for none."
+    ),
+    doc_date: external_exports.string().default("").describe(
+      "Creation date shown in the page furniture. Empty means 'derive it from the input file's modification time', which keeps a re-render of an unchanged document byte-identical. Pass 'none' to omit it entirely."
+    ),
+    doc_version: external_exports.string().default("").describe(
+      "Document version shown alongside the date, e.g. 'v2.1' or a git SHA. Omitted when empty."
+    ),
     shift_headings: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
       "Promote every heading one level. 'auto' does so when the document has exactly one top-level heading and something beneath it \u2014 that H1 is the document title, so it becomes the PDF title and the H2s become top-level sections instead of being nested under it."
     ),
@@ -21465,6 +21475,9 @@ server.tool(
       input,
       input_format,
       preset,
+      logo_path,
+      doc_date,
+      doc_version,
       shift_headings,
       markdown_path,
       markdown,
@@ -21543,7 +21556,24 @@ server.tool(
         readFile(join(TYPES_DIR, `${type}.tex.tmpl`), "utf8"),
         readFile(join(LAYOUTS_DIR, `${layout}.tex.tmpl`), "utf8")
       ]);
-      const header = parts.join("\n").replace(/__TITLE__/g, texEscape(title)).replace(/__HEADER_RIGHT__/g, texEscape(header_right)).replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
+      let stamp = "";
+      if (doc_date !== "none") {
+        if (doc_date) {
+          stamp = doc_date;
+        } else {
+          const when = srcPath ? await stat(inputFile).then((st) => st.mtime).catch(() => void 0) : void 0;
+          if (when) {
+            stamp = when.toISOString().slice(0, 10);
+          }
+        }
+      }
+      const stampParts = [stamp, doc_version ? texEscape(doc_version) : ""].filter(
+        Boolean
+      );
+      const stampLine = stampParts.join(" \\textperiodcentered{} ");
+      const stampSuffix = stampLine ? `\\quad\\textperiodcentered\\quad ${stampLine}` : "";
+      const versionSuffix = doc_version ? `\\quad\\textperiodcentered\\quad ${texEscape(doc_version)}` : "";
+      const header = parts.join("\n").replace(/__TITLE__/g, texEscape(title)).replace(/__HEADER_RIGHT__/g, texEscape(header_right)).replace(/__DOC_VERSION_SUFFIX__/g, versionSuffix).replace(/__DOC_STAMP_SUFFIX__/g, stampSuffix).replace(/__DOC_STAMP__/g, stampLine).replace(/__LOGO_PATH__/g, logo_path).replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
       const headerFile = join(scratch, "header.tex");
       await writeFile(headerFile, header, "utf8");
       const source = srcInline ?? await readFile(inputFile, "utf8").catch(() => "");

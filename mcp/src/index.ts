@@ -11,6 +11,7 @@ import {
   access,
   copyFile,
   readdir,
+  stat,
 } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
@@ -528,6 +529,28 @@ server.tool(
           "furniture, type controls structure. Any layout composes with any " +
           "type; an invalid value returns the list of valid presets.",
       ),
+    logo_path: z
+      .string()
+      .default("")
+      .describe(
+        "Path to an image used as the newspaper masthead device, flanking the " +
+          "nameplate. Ignored by every other type. Empty for none.",
+      ),
+    doc_date: z
+      .string()
+      .default("")
+      .describe(
+        "Creation date shown in the page furniture. Empty means 'derive it from " +
+          "the input file's modification time', which keeps a re-render of an " +
+          "unchanged document byte-identical. Pass 'none' to omit it entirely.",
+      ),
+    doc_version: z
+      .string()
+      .default("")
+      .describe(
+        "Document version shown alongside the date, e.g. 'v2.1' or a git SHA. " +
+          "Omitted when empty.",
+      ),
     shift_headings: z
       .enum(["auto", "true", "false"])
       .default("auto")
@@ -632,6 +655,9 @@ server.tool(
       input,
       input_format,
       preset,
+      logo_path,
+      doc_date,
+      doc_version,
       shift_headings,
       markdown_path,
       markdown,
@@ -743,10 +769,47 @@ server.tool(
         readFile(join(TYPES_DIR, `${type}.tex.tmpl`), "utf8"),
         readFile(join(LAYOUTS_DIR, `${layout}.tex.tmpl`), "utf8"),
       ]);
+      // Creation date: default to the input file's mtime rather than "now", so
+      // re-rendering an unchanged document produces the same PDF. `none` omits it.
+      let stamp = "";
+      if (doc_date !== "none") {
+        if (doc_date) {
+          stamp = doc_date;
+        } else {
+          const when = srcPath
+            ? await stat(inputFile)
+                .then((st) => st.mtime)
+                .catch(() => undefined)
+            : undefined;
+          if (when) {
+            stamp = when.toISOString().slice(0, 10);
+          }
+        }
+      }
+      const stampParts = [stamp, doc_version ? texEscape(doc_version) : ""].filter(
+        Boolean,
+      );
+      // Joined with a middle dot. The types that put this next to other text
+      // prefix it with the same separator, so an empty stamp leaves no dangling
+      // punctuation — hence the separator travels WITH the value.
+      const stampLine = stampParts.join(" \\textperiodcentered{} ");
+      const stampSuffix = stampLine
+        ? `\\quad\\textperiodcentered\\quad ${stampLine}`
+        : "";
+      // Version alone, for furniture that already shows a date — the newspaper
+      // dateline prints the document's own, and repeating it read as an error.
+      const versionSuffix = doc_version
+        ? `\\quad\\textperiodcentered\\quad ${texEscape(doc_version)}`
+        : "";
+
       const header = parts
         .join("\n")
         .replace(/__TITLE__/g, texEscape(title))
         .replace(/__HEADER_RIGHT__/g, texEscape(header_right))
+        .replace(/__DOC_VERSION_SUFFIX__/g, versionSuffix)
+        .replace(/__DOC_STAMP_SUFFIX__/g, stampSuffix)
+        .replace(/__DOC_STAMP__/g, stampLine)
+        .replace(/__LOGO_PATH__/g, logo_path)
         .replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
       const headerFile = join(scratch, "header.tex");
       await writeFile(headerFile, header, "utf8");

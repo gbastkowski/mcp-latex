@@ -78,6 +78,13 @@ def rpc_lines(presets: list[str]) -> list[str]:
                             # unaffected.
                             "title": preset,
                             "header_right": preset,
+                            # The newspaper masthead device. Ignored by every
+                            # other type, so it can be passed unconditionally.
+                            "logo_path": str(REPO / "demos" / "img" / "fig-logo.pdf"),
+                            # Fixed so a re-render is reproducible; without it the
+                            # server would use each source file's mtime.
+                            "doc_date": "2026-08-06",
+                            "doc_version": "v1.2.2",
                             "open_in": "none",
                         },
                     },
