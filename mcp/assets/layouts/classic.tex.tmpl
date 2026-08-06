@@ -17,9 +17,17 @@
 % the text block rather than overhanging it. \parbox lets a long headline wrap
 % inside the box instead of overflowing the line.
 \providecommand{\newspaperheadstyle}[1]{#1}
+% Align the text INSIDE the box with the body text, not the frame. \fbox insets
+% its content by \fboxrule+\fboxsep, so a box flush with \linewidth pushed the
+% headline that far right of every other line in the column. Grow the box by that
+% amount on each side and pull it back left by the same, with \hspace*: the frame
+% now sits a hair outside the measure and the headline starts exactly on it.
+\newlength{\newspaperboxpad}
 \renewcommand{\newspaperheadstyle}[1]{%
-  \framebox[\linewidth][l]{%
-    \parbox{\dimexpr\linewidth-2\fboxrule-2\fboxsep\relax}{\strut\textsc{#1}\strut}}%
+  \setlength{\newspaperboxpad}{\dimexpr\fboxrule+\fboxsep\relax}%
+  \hspace*{-\newspaperboxpad}%
+  \framebox[\dimexpr\linewidth+2\newspaperboxpad\relax][l]{%
+    \parbox{\linewidth}{\strut\textsc{#1}\strut}}%
 }
 
 % Classic wants the faintest rule of the three under the running head — the

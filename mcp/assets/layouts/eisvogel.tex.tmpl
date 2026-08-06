@@ -30,6 +30,39 @@
 \renewcommand{\subsection}{\@startsection{subsection}{2}{0pt}%
   {-3.25ex plus -1ex minus -.2ex}{1.5ex plus .2ex}%
   {\normalfont\large\sffamily\bfseries\headcolor}}
+% \chapter is NOT an \@startsection macro, so the patches above never reached it:
+% in the `reference` type its titles and TOC entries stayed serif black while the
+% sections beside them were sans accent — visibly two different schemes in one
+% contents list. Style the chapter head and its TOC entry to match.
+\@ifundefined{chapter}{}{%
+  \renewcommand{\@makechapterhead}[1]{%
+    \vspace*{1.5em}%
+    {\parindent\z@\raggedright\normalfont\sffamily
+      \interlinepenalty\@M
+      \Large\bfseries\headcolor \@chapapp\space\thechapter
+      \par\nobreak\vskip 0.4em
+      \huge\bfseries\headcolor #1\par\nobreak
+      \vskip 1.2em}}%
+  \renewcommand{\@makeschapterhead}[1]{%
+    \vspace*{1.5em}%
+    {\parindent\z@\raggedright\normalfont\sffamily
+      \interlinepenalty\@M
+      \huge\bfseries\headcolor #1\par\nobreak
+      \vskip 1.2em}}%
+  % TOC chapter lines: sans, to match the section lines beneath them.
+  \renewcommand{\l@chapter}[2]{%
+    \addpenalty{-\@highpenalty}%
+    \vskip 1.0em \@plus\p@
+    \setlength\@tempdima{1.5em}%
+    \begingroup
+      \parindent\z@ \rightskip\@pnumwidth
+      \parfillskip-\@pnumwidth
+      \leavevmode\sffamily\bfseries
+      \advance\leftskip\@tempdima \hskip-\leftskip
+      #1\nobreak\hfil\nobreak\hb@xt@\@pnumwidth{\hss #2}\par
+      \penalty\@highpenalty
+    \endgroup}%
+}
 \makeatother
 
 % No box and no all-caps: keep the plain Eisvogel headline. The newspaper type

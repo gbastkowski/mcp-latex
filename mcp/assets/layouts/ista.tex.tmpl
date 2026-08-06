@@ -1,15 +1,41 @@
 % Layout: ista — ista brand palette on white paper.
 %
-% Brand colours come from the ista-presentation deck (navy #0c1033, mint
-% #1BEB83). Those are tuned for a dark slide background, so they do not
-% transfer directly: navy carries the headings and links here, and mint is not
-% used at all — on white paper any mint big enough to notice reads as a banner,
-% and at body size it fails contrast. It stays defined for presets that want an
-% accent. The deck's #a0a8c0 grey is darkened to #5b6478 to stay legible.
-\definecolor{istaNavy}{HTML}{0c1033}
-\definecolor{istaMint}{HTML}{1BEB83} % defined but unused; see above
-\definecolor{istaGray}{HTML}{5b6478}
+% The full deck palette. Mint, green and orange are slide colours, tuned for a
+% dark background: at body-text size on white they fail contrast, so they appear
+% only as RULES and in code tokens, never as running prose. Navy carries
+% everything that has to be read. The deck's #a0a8c0 grey is darkened to #5b6478
+% to stay legible in print.
+\definecolor{istaNavy}{HTML}{0c1033}       % headings, links, running head
+\definecolor{istaNavyLight}{HTML}{161b4a}  % third-level headings
+\definecolor{istaMint}{HTML}{1BEB83}       % table rules
+\definecolor{istaGreen}{HTML}{34d399}      % code strings (darkened)
+\definecolor{istaOrange}{HTML}{f59e0b}     % code numerals (darkened)
+\definecolor{istaGray}{HTML}{5b6478}       % code comments, secondary text
 \colorlet{Blue}{istaNavy} % links pick up the brand navy
+
+% Table rules in the mint accent. A bright colour works here where it would not
+% in text, because these are hairlines rather than glyphs. colortbl has to be
+% loaded explicitly — pandoc's template does not, so \arrayrulecolor is otherwise
+% an undefined control sequence and the whole document fails at \begin{document}.
+\usepackage{colortbl}
+\arrayrulecolor{istaMint}
+
+% Code tokens in the brand palette rather than pandoc's default primaries.
+% \AtBeginDocument because pandoc defines these macros in its own preamble, after
+% this header include is read. \providecommand first: with --no-highlight the
+% macros never exist, and a bare \renewcommand would fail.
+\AtBeginDocument{%
+  \providecommand{\KeywordTok}[1]{#1}%
+  \providecommand{\DataTypeTok}[1]{#1}%
+  \providecommand{\StringTok}[1]{#1}%
+  \providecommand{\CommentTok}[1]{#1}%
+  \providecommand{\DecValTok}[1]{#1}%
+  \renewcommand{\KeywordTok}[1]{\textcolor{istaNavy}{\textbf{#1}}}%
+  \renewcommand{\DataTypeTok}[1]{\textcolor{istaNavyLight}{#1}}%
+  \renewcommand{\StringTok}[1]{\textcolor{istaGreen!65!black}{#1}}%
+  \renewcommand{\CommentTok}[1]{\textcolor{istaGray}{\textit{#1}}}%
+  \renewcommand{\DecValTok}[1]{\textcolor{istaOrange!75!black}{#1}}%
+}
 
 % This layout puts headings and running heads in \sffamily, but pandoc only
 % sets mainfont and monofont — the sans family is left at xelatex's default,
@@ -39,9 +65,11 @@
 \renewcommand{\subsection}{\@startsection{subsection}{2}{0pt}%
   {-3.25ex plus -1ex minus -.2ex}{1.5ex plus .2ex}%
   {\normalfont\large\sffamily\bfseries\headcolor}}
+% Third level steps down to the lighter navy, so the hierarchy has three visible
+% tiers rather than two identical ones.
 \renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{0pt}%
   {-3.25ex plus -1ex minus -.2ex}{1.5ex plus .2ex}%
-  {\normalfont\normalsize\sffamily\bfseries\headcolor}}
+  {\normalfont\normalsize\sffamily\bfseries\let\normalcolor\relax\color{istaNavyLight}}}
 \makeatother
 \fi
 
@@ -77,9 +105,17 @@
 % headlines of different lengths produced boxes of different widths. \parbox lets
 % a long headline wrap inside the box rather than overflowing the line.
 \providecommand{\newspaperheadstyle}[1]{#1}
+% Align the text INSIDE the box with the body text, not the frame. \fbox insets
+% its content by \fboxrule+\fboxsep, so a box flush with \linewidth pushed the
+% headline that far right of every other line in the column. Grow the box by that
+% amount on each side and pull it back left by the same, with \hspace*: the frame
+% now sits a hair outside the measure and the headline starts exactly on it.
+\newlength{\newspaperboxpad}
 \renewcommand{\newspaperheadstyle}[1]{%
   {\color{istaNavy}\fboxrule=0.8pt%
-    \framebox[\linewidth][l]{%
-      \parbox{\dimexpr\linewidth-2\fboxrule-2\fboxsep\relax}{%
+    \setlength{\newspaperboxpad}{\dimexpr\fboxrule+\fboxsep\relax}%
+    \hspace*{-\newspaperboxpad}%
+    \framebox[\dimexpr\linewidth+2\newspaperboxpad\relax][l]{%
+      \parbox{\linewidth}{%
         \color{istaNavy}\strut\textsc{#1}\strut}}}%
 }

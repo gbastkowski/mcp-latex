@@ -67,7 +67,9 @@ const TYPE_CLASSES: Record<
 > = {
   reference: {
     documentclass: "report",
-    classoption: ["twoside", "openright"],
+    // One-sided: these are read on screen, so mirrored margins buy nothing and
+    // `openright` would pad the file with blank verso pages.
+    classoption: ["oneside"],
     // At this length the TOC is the primary navigation, so it goes deeper than
     // the two levels a short report wants.
     tocDepth: 3,
@@ -92,7 +94,7 @@ const TYPE_CLASSES: Record<
   },
   komabook: {
     documentclass: "scrreprt",
-    classoption: ["twoside", "openright"],
+    classoption: ["oneside"],
     tocDepth: 3,
     topLevelDivision: "chapter",
   },
