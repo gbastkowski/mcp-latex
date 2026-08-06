@@ -108,6 +108,15 @@ const TYPE_FONTS: Record<string, { main?: string }> = {
   newspaper: { main: "Hoefler Text" },
 };
 
+// The page-margin default a type wants, used only when the caller left `margin`
+// at DEFAULT_MARGIN. A newspaper is set to the edge of the sheet: broad columns
+// and a wide masthead are the point, and a book's 2.5cm of white space wastes
+// most of the measure that going landscape just bought.
+const DEFAULT_MARGIN = "2.5cm";
+const TYPE_MARGINS: Record<string, string> = {
+  newspaper: "1cm",
+};
+
 async function listPresetParts(dir: string): Promise<string[]> {
   const files = await readdir(dir).catch(() => [] as string[]);
   return files
@@ -567,7 +576,13 @@ server.tool(
       ),
     papersize: z.string().default("a4"),
     fontsize: z.string().default("11pt"),
-    margin: z.string().default("2.5cm").describe("Page margin, e.g. '2.5cm'."),
+    margin: z
+      .string()
+      .default(DEFAULT_MARGIN)
+      .describe(
+        "Page margin, e.g. '2.5cm'. Some types override this default — a " +
+          "newspaper runs much closer to the edge of the sheet.",
+      ),
     link_color: z
       .string()
       .default("1F4E79")
@@ -759,6 +774,11 @@ server.tool(
       const effectiveTocDepth =
         toc_depth === 2 && typeClass?.tocDepth ? typeClass.tocDepth : toc_depth;
 
+      // A type may want a different page margin, but an explicit caller value
+      // still wins.
+      const effectiveMargin =
+        margin === DEFAULT_MARGIN ? (TYPE_MARGINS[type] ?? margin) : margin;
+
       const typeDefaults = TYPE_DEFAULTS[type] ?? {};
       const wantToc =
         toc === "auto"
@@ -785,7 +805,7 @@ server.tool(
           shiftHeadings: shift,
           papersize,
           fontsize,
-          margin,
+          margin: effectiveMargin,
           mainFont,
           monoFont,
           toc: wantToc,
@@ -811,7 +831,7 @@ server.tool(
           shiftHeadings: shift,
           papersize,
           fontsize,
-          margin,
+          margin: effectiveMargin,
           mainFont,
           monoFont,
           toc: wantToc,

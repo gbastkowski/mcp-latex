@@ -14,7 +14,13 @@
 
 % geometry is already loaded by pandoc with the margin variable, so reuse it
 % rather than re-passing options: \geometry applies landscape to the text block.
-\geometry{landscape}
+%
+% The margin here is deliberately tight (TYPE_MARGINS in mcp/src/index.ts sets
+% 1cm), which leaves fancyhdr no room for the running head — it ends up clipped
+% against the top edge of the sheet. `includehead` folds the header into the
+% margin geometry so it gets its own strip, and `headsep` keeps it off the
+% masthead below.
+\geometry{landscape,includehead,headsep=8pt}
 
 % Three-column body. multicol (not \twocolumn) balances the final page and
 % cooperates with pandoc's output.

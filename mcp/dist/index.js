@@ -21176,6 +21176,10 @@ var TYPE_FONTS = {
   // register rather than a book one. Falls back if the face is absent.
   newspaper: { main: "Hoefler Text" }
 };
+var DEFAULT_MARGIN = "2.5cm";
+var TYPE_MARGINS = {
+  newspaper: "1cm"
+};
 async function listPresetParts(dir) {
   const files = await readdir(dir).catch(() => []);
   return files.filter((f) => f.endsWith(".tex.tmpl")).map((f) => f.replace(/\.tex\.tmpl$/, "")).sort();
@@ -21435,7 +21439,9 @@ server.tool(
     ),
     papersize: external_exports.string().default("a4"),
     fontsize: external_exports.string().default("11pt"),
-    margin: external_exports.string().default("2.5cm").describe("Page margin, e.g. '2.5cm'."),
+    margin: external_exports.string().default(DEFAULT_MARGIN).describe(
+      "Page margin, e.g. '2.5cm'. Some types override this default \u2014 a newspaper runs much closer to the edge of the sheet."
+    ),
     link_color: external_exports.string().default("1F4E79").describe("Hex link color (no leading #)."),
     toc: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
       "Table of contents. 'auto' includes one only when the document has several headings; 'true'/'false' force it."
@@ -21546,6 +21552,7 @@ server.tool(
       const classoption = typeClass?.classoption ?? [];
       const topLevelDivision = typeClass?.topLevelDivision;
       const effectiveTocDepth = toc_depth === 2 && typeClass?.tocDepth ? typeClass.tocDepth : toc_depth;
+      const effectiveMargin = margin === DEFAULT_MARGIN ? TYPE_MARGINS[type] ?? margin : margin;
       const typeDefaults = TYPE_DEFAULTS[type] ?? {};
       const wantToc = toc === "auto" ? typeDefaults.toc !== void 0 ? typeDefaults.toc : tocMakesSense(source, fmt, effectiveTocDepth, shift) : toc === "true";
       const wantNumbers = number_sections === "auto" && typeDefaults.numberSections !== void 0 ? typeDefaults.numberSections : resolveAuto(number_sections, headingCount);
@@ -21562,7 +21569,7 @@ server.tool(
           shiftHeadings: shift,
           papersize,
           fontsize,
-          margin,
+          margin: effectiveMargin,
           mainFont,
           monoFont,
           toc: wantToc,
@@ -21584,7 +21591,7 @@ server.tool(
           shiftHeadings: shift,
           papersize,
           fontsize,
-          margin,
+          margin: effectiveMargin,
           mainFont,
           monoFont,
           toc: wantToc,

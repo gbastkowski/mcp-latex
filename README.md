@@ -36,7 +36,7 @@ mcp/                           TypeScript MCP server
 | `title` | "" | left running-header |
 | `header_right` | "" | right running-header, e.g. `PRD` |
 | `main_font` / `mono_font` | Palatino / Menlo | |
-| `papersize` / `fontsize` / `margin` | a4 / 11pt / 2.5cm | |
+| `papersize` / `fontsize` / `margin` | a4 / 11pt / 2.5cm | some types override `margin` — a newspaper runs to 1cm |
 | `link_color` | `1F4E79` | hex, no `#` |
 | `toc` | `auto` | `auto`\|`true`\|`false`; auto = on only when the TOC would have something to navigate |
 | `number_sections` | `auto` | `auto`\|`true`\|`false`; auto = on above 3 headings |
@@ -73,7 +73,7 @@ text. All of KOMA ships with BasicTeX, so nothing extra to install.
 `\chapter`, so numbering is chapter-scoped (`3.1`, not one continuous run), and
 a top-level heading in the source becomes a chapter.
 
-Types may also set the document class, class options and body font — a newspaper
+Types may also set the document class, class options, body font and page margin — a newspaper
 is not set in a book face, and `article` has no `\chapter` for a reference to use.
 
 Some types override the `auto` defaults — a newspaper never gets a TOC or

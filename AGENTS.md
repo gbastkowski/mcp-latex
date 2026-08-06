@@ -139,8 +139,13 @@ and no code change. An invalid preset returns the full list of valid combination
 Three per-type tables in `mcp/src/index.ts` carry what a LaTeX partial cannot set,
 because pandoc passes these before any header include is read:
 `TYPE_DEFAULTS` (the `auto` tri-states), `TYPE_CLASSES` (documentclass,
-classoption, tocDepth, topLevelDivision) and `TYPE_FONTS` (body serif, applied
-only when the caller left `main_font` at its default).
+classoption, tocDepth, topLevelDivision), `TYPE_FONTS` (body serif) and
+`TYPE_MARGINS` (page margin). The last two apply only when the caller left the
+corresponding argument at its default, so an explicit value is never overridden.
+
+A tight margin starves `fancyhdr` of headroom and the running head is clipped
+against the paper edge; `newspaper` passes `includehead` to `geometry` so the
+header gets its own strip inside the margin.
 
 `--top-level-division=chapter` matters for `reference`: without it pandoc's top
 level stays `\section`, no `\chapter` is ever issued, and every heading numbers
