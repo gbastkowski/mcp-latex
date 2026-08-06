@@ -16,6 +16,12 @@ continue.sh
 
 __pycache__/
 
+# LaTeX build litter from regenerating the demo figures
+*.aux
+*.log
+*.out
+*.toc
+
 # rendered preset demos — regenerate with `python3 demos/render.py`.
 # The sources and the figures under demos/ ARE committed; only the output is not.
 demos/out/
