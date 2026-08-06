@@ -37,7 +37,7 @@ const DEFAULT_PRESET = "classic-report";
 // handshake and appended to every render result, so it is possible to tell which
 // build actually produced a PDF — npx caches git installs, so the version in the
 // result is the only reliable check that a new one is being used.
-const SERVER_VERSION = "1.2.2";
+const SERVER_VERSION = "1.3.0";
 
 // Per-type overrides for the tri-state defaults. A type that is structurally
 // wrong with a TOC says so here; the LaTeX partial cannot refuse pandoc's
@@ -560,8 +560,9 @@ server.tool(
       .string()
       .default("")
       .describe(
-        "Path to an image used as the newspaper masthead device, flanking the " +
-          "nameplate. Ignored by every other type. Empty for none.",
+        "Path to an image. The newspaper flanks its nameplate with it; every " +
+          "other type places it above the document title on page one. Never " +
+          "discovered automatically — empty means none.",
       ),
     doc_date: z
       .string()

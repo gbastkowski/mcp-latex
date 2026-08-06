@@ -61,3 +61,23 @@
     \huge\bfseries #1\par\nobreak
     \vskip 1.2em}}
 \makeatother
+
+% --- Title-block logo -------------------------------------------------------
+% An optional device above the document title on page one, from the caller's
+% `logo_path`. Nothing is discovered automatically: a file happening to be named
+% logo.png near the input should not silently appear in a document.
+%
+% pandoc emits \maketitle only when the document has a title, so a titleless
+% document simply never reaches this. graphicx is loaded explicitly because pandoc
+% only loads it when the body itself contains an image.
+\usepackage{graphicx}
+% titling supplies \pretitle/\posttitle; it is in BasicTeX.
+\usepackage{titling}
+\makeatletter
+\newcommand{\mcpl@logo}{__LOGO_PATH__}
+\ifx\mcpl@logo\@empty\else
+  \pretitle{\begin{center}\includegraphics[height=48pt]{\mcpl@logo}\\[1.2em]%
+    \LARGE}
+  \posttitle{\par\end{center}\vskip 0.5em}
+\fi
+\makeatother
