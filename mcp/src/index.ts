@@ -36,7 +36,7 @@ const DEFAULT_PRESET = "classic-report";
 // handshake and appended to every render result, so it is possible to tell which
 // build actually produced a PDF — npx caches git installs, so the version in the
 // result is the only reliable check that a new one is being used.
-const SERVER_VERSION = "1.2.0";
+const SERVER_VERSION = "1.2.1";
 
 // Per-type overrides for the tri-state defaults. A type that is structurally
 // wrong with a TOC says so here; the LaTeX partial cannot refuse pandoc's
