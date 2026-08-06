@@ -41,7 +41,7 @@ mcp/                           TypeScript MCP server
 | `toc` | `auto` | `auto`\|`true`\|`false`; auto = on only when the TOC would have something to navigate |
 | `number_sections` | `auto` | `auto`\|`true`\|`false`; auto = on above 3 headings |
 | `logo_path` | "" | image: flanks the newspaper nameplate, or sits above the title on page one for other types |
-| `doc_date` | "" | creation date in the page furniture; empty = the input file's mtime, `none` = omit |
+| `doc_date` | "" | creation date, shown once under the title on page one; empty = the input file's mtime, `none` = omit |
 | `doc_version` | "" | version shown beside the date, e.g. `v2.1` or a git SHA |
 | `shift_headings` | `auto` | `auto`\|`true`\|`false`; auto promotes when a lone H1 is the title |
 | `engine` | `auto` | `auto` \| `native` \| `docker` |

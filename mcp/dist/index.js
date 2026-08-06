@@ -21129,7 +21129,7 @@ var COMMON_PATH = join(ASSETS_DIR, "common.tex.tmpl");
 var LAYOUTS_DIR = join(ASSETS_DIR, "layouts");
 var TYPES_DIR = join(ASSETS_DIR, "types");
 var DEFAULT_PRESET = "classic-report";
-var SERVER_VERSION = "1.3.1";
+var SERVER_VERSION = "1.3.2";
 var TYPE_DEFAULTS = {
   // A newspaper has no table of contents and no numbered sections.
   newspaper: { toc: false, numberSections: false },
@@ -21571,9 +21571,8 @@ server.tool(
         Boolean
       );
       const stampLine = stampParts.join(" \\textperiodcentered{} ");
-      const stampSuffix = stampLine ? `\\quad\\textperiodcentered\\quad ${stampLine}` : "";
       const versionSuffix = doc_version ? `\\quad\\textperiodcentered\\quad ${texEscape(doc_version)}` : "";
-      const header = parts.join("\n").replace(/__TITLE__/g, texEscape(title)).replace(/__HEADER_RIGHT__/g, texEscape(header_right)).replace(/__DOC_VERSION_SUFFIX__/g, versionSuffix).replace(/__DOC_STAMP_SUFFIX__/g, stampSuffix).replace(/__DOC_STAMP__/g, stampLine).replace(/__LOGO_PATH__/g, logo_path).replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
+      const header = parts.join("\n").replace(/__TITLE__/g, texEscape(title)).replace(/__HEADER_RIGHT__/g, texEscape(header_right)).replace(/__DOC_VERSION_SUFFIX__/g, versionSuffix).replace(/__DOC_STAMP__/g, stampLine).replace(/__LOGO_PATH__/g, logo_path).replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
       const headerFile = join(scratch, "header.tex");
       await writeFile(headerFile, header, "utf8");
       const source = srcInline ?? await readFile(inputFile, "utf8").catch(() => "");

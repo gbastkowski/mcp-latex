@@ -22,13 +22,9 @@
 \fancyhead[L]{\small\itshape __TITLE__}
 \fancyhead[R]{\small\itshape __HEADER_RIGHT__}
 \fancyfoot[R]{\small \thepage/\pageref{LastPage}}
-% Creation date (and version, if given) opposite the folio. __DOC_STAMP__ is
-% substituted by the server and collapses to nothing when both are absent.
-\fancyfoot[L]{\small __DOC_STAMP__}
 \fancypagestyle{plain}{%
   \fancyhf{}%
   \fancyfoot[R]{\small \thepage/\pageref{LastPage}}%
-  \fancyfoot[L]{\small __DOC_STAMP__}%
   \renewcommand{\headrulewidth}{0pt}%
   \renewcommand{\footrulewidth}{0pt}%
 }
@@ -49,22 +45,43 @@
 \setlength{\parskip}{0.5em}
 \setlength{\parindent}{0pt}
 
-% --- Title-block logo -------------------------------------------------------
-% An optional device above the document title on page one, from the caller's
-% `logo_path`. Nothing is discovered automatically: a file happening to be named
-% logo.png near the input should not silently appear in a document.
+% --- Title block ------------------------------------------------------------
+% Optional logo above the title, and the creation date and version below it.
+%
+% The stamp belongs HERE and nowhere else. It was in the page footer, which put a
+% generation date on every single page — noise on a thirty-page document, and it
+% competed with the folio for attention. A document is created once, so it says so
+% once, on the first page under its own title.
+%
+% Nothing is discovered automatically: a file happening to be named logo.png near
+% the input should not silently appear in a document.
 %
 % pandoc emits \maketitle only when the document has a title, so a titleless
-% document simply never reaches this. graphicx is loaded explicitly because pandoc
-% only loads it when the body itself contains an image.
+% document never reaches any of this — and then there is nothing to sit under.
+% graphicx is loaded explicitly because pandoc only loads it when the body itself
+% contains an image.
 \usepackage{graphicx}
 % titling supplies \pretitle/\posttitle; it is in BasicTeX.
 \usepackage{titling}
 \makeatletter
 \newcommand{\mcpl@logo}{__LOGO_PATH__}
-\ifx\mcpl@logo\@empty\else
+\newcommand{\mcpl@stamp}{__DOC_STAMP__}
+% \posttitle has to be set whenever EITHER a logo or a stamp is present, and it
+% must close whatever \pretitle opened — hence the four-way split rather than two
+% independent \ifx blocks.
+\ifx\mcpl@logo\@empty
+  \ifx\mcpl@stamp\@empty\else
+    \posttitle{\par\end{center}%
+      \begin{center}\small\mcpl@stamp\end{center}\vskip 0.5em}
+  \fi
+\else
   \pretitle{\begin{center}\includegraphics[height=48pt]{\mcpl@logo}\\[1.2em]%
     \LARGE}
-  \posttitle{\par\end{center}\vskip 0.5em}
+  \ifx\mcpl@stamp\@empty
+    \posttitle{\par\end{center}\vskip 0.5em}
+  \else
+    \posttitle{\par\end{center}%
+      \begin{center}\small\mcpl@stamp\end{center}\vskip 0.5em}
+  \fi
 \fi
 \makeatother

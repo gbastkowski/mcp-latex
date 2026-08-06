@@ -37,7 +37,7 @@ const DEFAULT_PRESET = "classic-report";
 // handshake and appended to every render result, so it is possible to tell which
 // build actually produced a PDF — npx caches git installs, so the version in the
 // result is the only reliable check that a new one is being used.
-const SERVER_VERSION = "1.3.1";
+const SERVER_VERSION = "1.3.2";
 
 // Per-type overrides for the tri-state defaults. A type that is structurally
 // wrong with a TOC says so here; the LaTeX partial cannot refuse pandoc's
@@ -817,13 +817,10 @@ server.tool(
       const stampParts = [stamp, doc_version ? texEscape(doc_version) : ""].filter(
         Boolean,
       );
-      // Joined with a middle dot. The types that put this next to other text
-      // prefix it with the same separator, so an empty stamp leaves no dangling
-      // punctuation — hence the separator travels WITH the value.
+      // Joined with a middle dot. The newspaper appends only the version to its
+      // own dateline, so that form keeps a leading separator; the title block
+      // needs none, since it sits on a line of its own.
       const stampLine = stampParts.join(" \\textperiodcentered{} ");
-      const stampSuffix = stampLine
-        ? `\\quad\\textperiodcentered\\quad ${stampLine}`
-        : "";
       // Version alone, for furniture that already shows a date — the newspaper
       // dateline prints the document's own, and repeating it read as an error.
       const versionSuffix = doc_version
@@ -835,7 +832,6 @@ server.tool(
         .replace(/__TITLE__/g, texEscape(title))
         .replace(/__HEADER_RIGHT__/g, texEscape(header_right))
         .replace(/__DOC_VERSION_SUFFIX__/g, versionSuffix)
-        .replace(/__DOC_STAMP_SUFFIX__/g, stampSuffix)
         .replace(/__DOC_STAMP__/g, stampLine)
         .replace(/__LOGO_PATH__/g, logo_path)
         .replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
