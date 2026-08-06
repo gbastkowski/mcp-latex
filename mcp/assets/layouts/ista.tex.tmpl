@@ -27,6 +27,10 @@
 % number in a box that restores \normalcolor, which resets the heading to black
 % halfway through. Neutralising \normalcolor inside the heading group makes the
 % colour stick across both the number and the text.
+% Only style headings if the TYPE partial did not already claim them: the
+% layout is concatenated last, so an unguarded patch here would override a
+% type that deliberately set its own hierarchy (see types/newspaper).
+\ifdefined\headingsclaimed\else
 \makeatletter
 \newcommand{\headcolor}{\let\normalcolor\relax\color{istaNavy}}
 \renewcommand{\section}{\@startsection{section}{1}{0pt}%
@@ -39,6 +43,7 @@
   {-3.25ex plus -1ex minus -.2ex}{1.5ex plus .2ex}%
   {\normalfont\normalsize\sffamily\bfseries\headcolor}}
 \makeatother
+\fi
 
 % No rule under the running header: a full-width mint band reads as a banner on
 % paper and fights the body copy. The brand shows up in the navy headings, the
@@ -47,3 +52,11 @@
 
 \fancyhead[L]{\small\sffamily\color{istaNavy}__TITLE__}
 \fancyhead[R]{\small\sffamily\color{istaGray}__HEADER_RIGHT__}
+
+% Newspaper headlines get a ruled box, in the brand navy. The hook only exists
+% under the newspaper type, so declare-then-override — a bare \renewcommand would
+% be an "undefined control sequence" under every other type reading this file.
+\providecommand{\newspaperheadstyle}[1]{#1}
+\renewcommand{\newspaperheadstyle}[1]{%
+  {\color{istaNavy}\fboxrule=0.8pt\fbox{\strut\color{istaNavy}#1}}%
+}

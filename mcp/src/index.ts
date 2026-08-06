@@ -40,6 +40,16 @@ const TYPE_DEFAULTS: Record<string, { toc?: boolean; numberSections?: boolean }>
     newspaper: { toc: false, numberSections: false },
   };
 
+// Per-type body serif, used only when the caller left main_font at the default.
+// This lives here rather than in the partial because pandoc's `-V mainfont`
+// overrides anything a header include sets, and because a font the caller asked
+// for explicitly must not be silently replaced.
+const TYPE_FONTS: Record<string, { main?: string }> = {
+  // Higher stroke contrast than Palatino and old-style figures — a newspaper
+  // register rather than a book one. Falls back if the face is absent.
+  newspaper: { main: "Hoefler Text" },
+};
+
 async function listPresetParts(dir: string): Promise<string[]> {
   const files = await readdir(dir).catch(() => [] as string[]);
   return files
@@ -149,6 +159,21 @@ async function onPath(cmd: string): Promise<boolean> {
 async function dockerAvailable(): Promise<boolean> {
   const res = await run("docker", ["info"]);
   return res.code === 0;
+}
+
+// True if fontconfig can resolve `name`. Used to check a type's preferred body
+// serif before requesting it, so a machine without that face degrades to the
+// normal default instead of failing the render with a fontspec error.
+// Cached: the same font is asked about on every call and fc-list is not cheap.
+const fontCache = new Map<string, boolean>();
+async function fontExists(name: string): Promise<boolean> {
+  const hit = fontCache.get(name);
+  if (hit !== undefined) return hit;
+  const res = await run("fc-list", [name, "family"]);
+  // fc-list exits 0 with empty output for an unknown family, so check the text.
+  const ok = res.code === 0 && res.stdout.trim().length > 0;
+  fontCache.set(name, ok);
+  return ok;
 }
 
 // In 'auto' mode a document with fewer than this many headings is treated as
@@ -284,10 +309,22 @@ function countHeadingsAtLevel(
 // heading should move up a level and the title becomes the PDF's title rather
 // than a numbered section competing with its own children.
 function shouldShiftHeadings(src: string, fmt: InputFormat): boolean {
+  // A document whose title already comes from metadata (YAML front matter, or
+  // org's #+title:) has no title heading to absorb, so promoting would lift its
+  // real sections to a level the styling does not expect. Leave it alone.
+  if (hasMetadataTitle(src, fmt)) return false;
   return (
     countHeadingsAtLevel(src, fmt, 1) === 1 &&
     countHeadingsAtLevel(src, fmt, 2) > 0
   );
+}
+
+// True if the source declares its own title in metadata rather than as a
+// heading: YAML front matter `title:` for markdown, `#+title:` for org.
+function hasMetadataTitle(src: string, fmt: InputFormat): boolean {
+  if (fmt === "org") return /^\s*#\+title:/im.test(src);
+  const m = src.match(/^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)\r?\n/);
+  return m ? /^title\s*:/im.test(m[1]) : false;
 }
 
 // Count ATX headings (`#`..`######`) in Markdown, ignoring anything inside
@@ -573,7 +610,12 @@ server.tool(
     let mainFont = main_font;
     let monoFont = mono_font;
     if (main_font === MAC_DEFAULT_MAIN) {
+      // A type may prefer its own body serif (a newspaper is not set in a book
+      // face). Only consulted when the caller left the default, and only on the
+      // native engine — the Docker image has no system fonts to find it in.
+      const typeFont = TYPE_FONTS[type]?.main;
       if (chosen === "docker") mainFont = "";
+      else if (typeFont && (await fontExists(typeFont))) mainFont = typeFont;
       else if (process.platform === "linux") mainFont = LINUX_DEFAULT_MAIN;
     }
     if (mono_font === MAC_DEFAULT_MONO) {

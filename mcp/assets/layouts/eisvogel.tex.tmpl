@@ -18,6 +18,10 @@
 %
 % \headcolor neutralises \normalcolor so the colour survives the section-number
 % box that --number-sections emits; a bare \color resets to black mid-heading.
+% Unlike ista, this layout styles headings unconditionally — it does NOT honour
+% \headingsclaimed. Eisvogel is meant to look like Eisvogel whatever the type, so
+% `eisvogel-newspaper` keeps the masthead and the newspaper page furniture but
+% takes its heading hierarchy (and its all-caps suppression, below) from here.
 \makeatletter
 \newcommand{\headcolor}{\let\normalcolor\relax\color{eisvogelAccent}}
 \renewcommand{\section}{\@startsection{section}{1}{0pt}%
@@ -26,6 +30,18 @@
 \renewcommand{\subsection}{\@startsection{subsection}{2}{0pt}%
   {-3.25ex plus -1ex minus -.2ex}{1.5ex plus .2ex}%
   {\normalfont\large\sffamily\bfseries\headcolor}}
+\makeatother
+
+% No box and no all-caps: keep the plain Eisvogel headline. The newspaper type
+% routes its headline text through \newspaperheadstyle and uppercases it inside
+% \AtBeginDocument, so both have to be neutralised here — the box by resetting the
+% hook, the caps by restoring \section after that deferred patch has run.
+\providecommand{\newspaperheadstyle}[1]{#1}
+\renewcommand{\newspaperheadstyle}[1]{#1}
+\makeatletter
+\AtBeginDocument{%
+  \ifdefined\newspaper@sec\let\section\newspaper@sec\fi
+}
 \makeatother
 
 % Thin rule under the running header — Eisvogel's most recognisable trait.

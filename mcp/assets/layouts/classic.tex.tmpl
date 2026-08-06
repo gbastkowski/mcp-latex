@@ -2,3 +2,11 @@
 % italic running heads, compact "N/M" page marker bottom-right.
 % Section headings keep the LaTeX defaults (black, bold, serif).
 \setlength{\parskip}{0.5em}
+
+% Newspaper headlines get a ruled box — a period section-marker device. The hook
+% only exists under the newspaper type, so declare-then-override: a bare
+% \renewcommand would be an "undefined control sequence" error under every other
+% type, which reads this same file.
+% \strut keeps the box height uniform whether or not the text has descenders.
+\providecommand{\newspaperheadstyle}[1]{#1}
+\renewcommand{\newspaperheadstyle}[1]{\fbox{\strut #1}}

@@ -21132,6 +21132,11 @@ var TYPE_DEFAULTS = {
   // A newspaper has no table of contents and no numbered sections.
   newspaper: { toc: false, numberSections: false }
 };
+var TYPE_FONTS = {
+  // Higher stroke contrast than Palatino and old-style figures — a newspaper
+  // register rather than a book one. Falls back if the face is absent.
+  newspaper: { main: "Hoefler Text" }
+};
 async function listPresetParts(dir) {
   const files = await readdir(dir).catch(() => []);
   return files.filter((f) => f.endsWith(".tex.tmpl")).map((f) => f.replace(/\.tex\.tmpl$/, "")).sort();
@@ -21203,6 +21208,15 @@ async function onPath(cmd) {
 async function dockerAvailable() {
   const res = await run("docker", ["info"]);
   return res.code === 0;
+}
+var fontCache = /* @__PURE__ */ new Map();
+async function fontExists(name) {
+  const hit = fontCache.get(name);
+  if (hit !== void 0) return hit;
+  const res = await run("fc-list", [name, "family"]);
+  const ok = res.code === 0 && res.stdout.trim().length > 0;
+  fontCache.set(name, ok);
+  return ok;
 }
 var SIMPLE_DOC_MAX_HEADINGS = 3;
 var MIN_TOC_ENTRIES = 4;
@@ -21280,7 +21294,13 @@ function countHeadingsAtLevel(src, fmt, level) {
   return count;
 }
 function shouldShiftHeadings(src, fmt) {
+  if (hasMetadataTitle(src, fmt)) return false;
   return countHeadingsAtLevel(src, fmt, 1) === 1 && countHeadingsAtLevel(src, fmt, 2) > 0;
+}
+function hasMetadataTitle(src, fmt) {
+  if (fmt === "org") return /^\s*#\+title:/im.test(src);
+  const m = src.match(/^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)\r?\n/);
+  return m ? /^title\s*:/im.test(m[1]) : false;
 }
 function countHeadings(md) {
   let count = 0;
@@ -21440,7 +21460,9 @@ server.tool(
     let mainFont = main_font;
     let monoFont = mono_font;
     if (main_font === MAC_DEFAULT_MAIN) {
+      const typeFont = TYPE_FONTS[type]?.main;
       if (chosen === "docker") mainFont = "";
+      else if (typeFont && await fontExists(typeFont)) mainFont = typeFont;
       else if (process.platform === "linux") mainFont = LINUX_DEFAULT_MAIN;
     }
     if (mono_font === MAC_DEFAULT_MONO) {

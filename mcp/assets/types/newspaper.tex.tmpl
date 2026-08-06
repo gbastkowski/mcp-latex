@@ -50,6 +50,83 @@
 }
 \makeatother
 
+% --- Body face --------------------------------------------------------------
+% The body serif is chosen by the server (TYPE_FONTS in mcp/src/index.ts), not
+% here: pandoc's -V mainfont wins over anything a header include does, and
+% hardcoding \setmainfont would also stomp a font the caller asked for
+% explicitly. The newspaper default is Hoefler Text — higher stroke contrast
+% than Palatino and old-style figures, so "118.2" sits in the line rather than
+% standing above it, and it shares the Didone register of the nameplate.
+%
+% Old-style figures still have to be requested here, since -V mainfont carries
+% no font features.
+\defaultfontfeatures[\rmfamily]{Numbers = OldStyle}
+
+% Headlines. A newspaper's heading hierarchy has to be legible at a glance, so
+% the levels differ in FACE and not only in size: the story head takes the Didot
+% display face at \LARGE, the sub-head (the "deck") is small-caps in the body
+% serif, and the third level is bold italic. Sized purely by points they were
+% nearly indistinguishable — a 12pt bold next to an 11pt bold reads as one level.
+%
+% \headingsclaimed tells the layout partial that follows to leave \section alone;
+% otherwise the layout's own patch would load last and win, and the display face
+% would never appear. See the note in each layout.
+\newcommand{\headingsclaimed}{}
+\makeatletter
+% Headline: display face, ALL CAPS, at a size that carries. Caps are the
+% newspaper convention and they solve the weight problem — Didot ships no bold in
+% this family, so \bfseries silently substitutes a face at roughly body size and
+% the \LARGE is lost. Caps read as loud without needing weight at all.
+%
+\renewcommand{\section}{\@startsection{section}{1}{0pt}%
+  {-3.4ex plus -1ex minus -.2ex}{1.4ex plus .2ex}%
+  {\normalfont\Large\mastheadfont}}
+% Deck: body serif, small-caps, clearly subordinate to the all-caps headline.
+\renewcommand{\subsection}{\@startsection{subsection}{2}{0pt}%
+  {-2.4ex plus -1ex minus -.2ex}{0.8ex plus .2ex}%
+  {\normalfont\small\scshape}}
+% Third level: italic, quietest of the three.
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{0pt}%
+  {-2.0ex plus -1ex minus -.2ex}{0.6ex plus .2ex}%
+  {\normalfont\normalsize\itshape}}
+
+\makeatother
+
+% All-caps headlines, the newspaper convention.
+%
+% Two traps here, both hit while building this:
+%   1. \MakeUppercase in the \@startsection style argument does nothing useful —
+%      that argument sets formatting, and the macro swallows what follows it
+%      rather than the heading text. The uppercasing has to wrap \section and
+%      transform its ARGUMENT.
+%   2. Wrapping it inline is not enough either: the layout partial is
+%      concatenated after this file, and if it redefines \section the wrapper is
+%      discarded. \AtBeginDocument defers until every partial has been read.
+% \texorpdfstring keeps the PDF bookmark in mixed case.
+%
+% \newspaperheadstyle is the per-layout hook: a layout sets it to decorate the
+% headline text (a box, a rule, nothing). Default is plain, so a layout that
+% ignores the hook gets an undecorated all-caps headline.
+\providecommand{\newspaperheadstyle}[1]{#1}
+% \section takes an optional argument (the short form used for the TOC and
+% running head), so it cannot be redefined with a plain [1] — that fails with
+% "Argument of \@argdef has an extra }" at \begin{document}. Both the starred and
+% optional forms have to be declared, and with \long\def rather than
+% \newcommand: inside \AtBeginDocument a \newcommand for an @-name re-declares on
+% each expansion and trips the same error.
+\makeatletter
+\AtBeginDocument{%
+  \let\newspaper@sec\section
+  \def\section{\@ifstar{\newspaper@sec@s}{\@dblarg\newspaper@sec@n}}%
+  \long\def\newspaper@sec@s#1{%
+    \newspaper@sec*{\newspaperheadstyle{\MakeUppercase{#1}}}}%
+  % Short form (#1) stays mixed case for the TOC and PDF bookmarks; only the
+  % printed headline (#2) is decorated and uppercased.
+  \long\def\newspaper@sec@n[#1]#2{%
+    \newspaper@sec[#1]{\newspaperheadstyle{\MakeUppercase{#2}}}}%
+}
+\makeatother
+
 % --- Page furniture ---------------------------------------------------------
 \pagestyle{fancy}
 \fancyhf{}
