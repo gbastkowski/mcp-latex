@@ -82,9 +82,11 @@ def rpc_lines(presets: list[str]) -> list[str]:
                             # other type, so it can be passed unconditionally.
                             "logo_path": str(REPO / "demos" / "img" / "fig-logo.pdf"),
                             # Fixed so a re-render is reproducible; without it the
-                            # server would use each source file's mtime.
+                            # server would use each source file's mtime. Not the
+                            # server's own version — this is the *document's*, and
+                            # tying it to the release would go stale every bump.
                             "doc_date": "2026-08-06",
-                            "doc_version": "v1.2.2",
+                            "doc_version": "rev A",
                             "open_in": "none",
                         },
                     },

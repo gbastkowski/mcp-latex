@@ -21129,7 +21129,7 @@ var COMMON_PATH = join(ASSETS_DIR, "common.tex.tmpl");
 var LAYOUTS_DIR = join(ASSETS_DIR, "layouts");
 var TYPES_DIR = join(ASSETS_DIR, "types");
 var DEFAULT_PRESET = "classic-report";
-var SERVER_VERSION = "1.3.0";
+var SERVER_VERSION = "1.3.1";
 var TYPE_DEFAULTS = {
   // A newspaper has no table of contents and no numbered sections.
   newspaper: { toc: false, numberSections: false },

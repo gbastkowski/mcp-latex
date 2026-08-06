@@ -111,14 +111,15 @@
     \fi
     \rule{\textwidth}{0.4pt}\\[-0.3em]
     \rule{\textwidth}{1.6pt}\\[0.35em]
-    % Dateline strip: small caps, widely spaced, the way a broadsheet sets it.
+    % Dateline strip: small caps, centred. Just the date — no volume number and no
+    % cover price. Those are period decoration a real document has no use for, and
+    % they were invented flavour left over from the demo copy.
+    %
+    % The document's own date leads. When it has one, only the version follows;
+    % printing the server's date as well showed the date twice.
     {\footnotesize\scshape
-      % The document's own date leads. When it has one, only the version follows —
-      % printing the server's date as well showed the date twice.
-      % The document's own date leads; the server's stamp (version, and the date
-      % when the document declares none) follows it.
       \ifx\@date\@empty __DOC_STAMP__\else\@date __DOC_VERSION_SUFFIX__\fi
-      \hfill Vol.~I, No.~1 \hfill Price Twopence}\\[-0.2em]
+      }\\[-0.2em]
     \rule{\textwidth}{0.4pt}
   \end{center}
   \vspace{0.8em}
