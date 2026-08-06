@@ -13,3 +13,9 @@ node_modules/
 
 # stray session helper, not part of the plugin
 continue.sh
+
+__pycache__/
+
+# rendered preset demos — regenerate with `python3 demos/render.py`.
+# The sources and the figures under demos/ ARE committed; only the output is not.
+demos/out/

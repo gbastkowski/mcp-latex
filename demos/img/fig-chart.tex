@@ -1,0 +1,14 @@
+% Consumption bar chart for the newspaper demo.  xelatex fig-chart.tex
+\documentclass{article}
+\usepackage[papersize={6.4cm,3.4cm},margin=1mm]{geometry}
+\usepackage{tikz}
+\pagestyle{empty}
+\begin{document}\noindent
+\begin{tikzpicture}[line width=0.5pt,x=0.5cm,y=0.04cm]
+  \foreach \y in {20,40,60}{ \draw[gray!50] (0,\y) -- (11.4,\y); \node[font=\tiny,left] at (0,\y) {\y};}
+  \foreach \x/\h in {0.3/18,1.4/27,2.5/41,3.6/35,4.7/52,5.8/47,6.9/58,8.0/44,9.1/33,10.2/22}{
+    \fill[gray!35] (\x,0) rectangle (\x+0.85,\h); \draw (\x,0) rectangle (\x+0.85,\h);}
+  \draw[line width=0.7pt] (0,0) -- (11.4,0);
+  \draw[line width=0.7pt] (0,0) -- (0,64);
+\end{tikzpicture}
+\end{document}

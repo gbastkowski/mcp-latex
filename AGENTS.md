@@ -18,6 +18,8 @@ server.
   `__LINK_COLOR__` are substituted at render time.
 - `docker/Dockerfile` — custom TeX image `ghcr.io/gbastkowski/mcp-latex-tex`.
 - `hosts/` — ports for non-Claude MCP hosts (opencode, hermes) + `install.sh`.
+- `demos/` — one source document per type plus `render.py`, which renders every
+  preset through the server into the git-ignored `demos/out/`.
 
 ## Non-Claude hosts (`hosts/`)
 
@@ -162,12 +164,11 @@ level at once, section numbers included. That one interface replaces the
 need. `fancyhdr` coexists with `scrartcl`/`scrreprt` (KOMA would prefer
 `scrlayer-scrpage`), so every layout partial works unchanged.
 
-Demos: `scratchpad/render-demos.py` renders all 15 presets **through the server**
-over JSON-RPC (not by assembling pandoc calls, which would skip preset
-composition, type defaults and heading shift). Reports and newspapers use
-different source documents, since a technical doc says nothing about whether a
-masthead works, and a four-page report reveals nothing about chapter openings or
-twoside running heads.
+Demos: `python3 demos/render.py` renders all 15 presets **through the server** over
+JSON-RPC — not by assembling pandoc calls, which would skip preset composition,
+type defaults and heading shift. See `demos/README.md`. It asserts the preset the
+server echoes back, because omitting the `preset` argument silently falls back to
+`classic-report` and still reports success.
 
 `SERVER_VERSION` in `mcp/src/index.ts` must be kept in step with all three
 manifests: `package.json`, `mcp/package.json` and `.claude-plugin/plugin.json`. It is reported in the MCP handshake and appended to every
