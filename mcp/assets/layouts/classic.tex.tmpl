@@ -18,8 +18,8 @@
 % inside the box instead of overflowing the line.
 \providecommand{\newspaperheadstyle}[1]{#1}
 \renewcommand{\newspaperheadstyle}[1]{%
-  \framebox[\dimexpr\linewidth-2\fboxrule-2\fboxsep\relax][l]{%
-    \parbox{\dimexpr\linewidth-4\fboxrule-4\fboxsep\relax}{\strut #1\strut}}%
+  \framebox[\linewidth][l]{%
+    \parbox{\dimexpr\linewidth-2\fboxrule-2\fboxsep\relax}{\strut\textsc{#1}\strut}}%
 }
 
 % Classic wants the faintest rule of the three under the running head — the

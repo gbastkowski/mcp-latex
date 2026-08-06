@@ -36,6 +36,8 @@
 % routes its headline text through \newspaperheadstyle and uppercases it inside
 % \AtBeginDocument, so both have to be neutralised here — the box by resetting the
 % hook, the caps by restoring \section after that deferred patch has run.
+% Plain on purpose: no box AND no Kapitälchen, so eisvogel-newspaper reads as
+% Eisvogel with newspaper furniture rather than as a broadsheet.
 \providecommand{\newspaperheadstyle}[1]{#1}
 \renewcommand{\newspaperheadstyle}[1]{#1}
 \makeatletter
@@ -53,6 +55,12 @@
 % Thin rule under the running header — Eisvogel's most recognisable trait.
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\headrule}{\hbox to\headwidth{\color{eisvogelRule}\leaders\hrule height \headrulewidth\hfill}}
+
+% The rule is drawn at the BOTTOM of the header box, so under the newspaper type's
+% tight \headsep it landed on the first line of body text. This layout is the only
+% one with a rule heavy enough to collide, so it buys back the clearance itself
+% rather than loosening the type for everyone.
+\ifdefined\isnewspapertype\addtolength{\headsep}{7pt}\fi
 
 % The running-head typeface goes through \newspaperheadfont where the newspaper
 % type provides it, so the folio this layout does not set survives. \fancyhead is

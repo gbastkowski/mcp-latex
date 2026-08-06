@@ -45,6 +45,22 @@
 % ("longtable not in 1-column mode") because it is built to break across pages in
 % a single column. Alias it to a plain tabular: no page-breaking, but it renders
 % inside a column. Keep newspaper tables small.
+% Same class of problem for images: pandoc wraps every one in a `figure`, and a
+% float cannot be placed inside multicols — LaTeX silently DROPS it, image and
+% caption together, with no error. Redefine `figure` as an ordinary centred block
+% so the graphic stays exactly where it appears in the copy.
+\usepackage{float}
+\let\origfigure\figure
+\let\endorigfigure\endfigure
+\renewenvironment{figure}[1][]{%
+  \par\vspace{0.4em}\centering
+  % \caption needs a real float to count against; outside one it errors. Swap it
+  % for a plain italic line, which is how this paper sets its cutlines anyway.
+  \renewcommand{\caption}[2][]{\par\vspace{0.15em}\footnotesize\itshape ##2\par}%
+}{%
+  \par\vspace{0.4em}%
+}
+
 \usepackage{array}
 \let\longtable\tabular
 \let\endlongtable\endtabular
@@ -156,7 +172,11 @@
 % \newspaperheadstyle is the per-layout hook: a layout sets it to decorate the
 % headline text (a box, a rule, nothing). Default is plain, so a layout that
 % ignores the hook gets an undecorated all-caps headline.
-\providecommand{\newspaperheadstyle}[1]{#1}
+% The hook receives the RAW heading text and owns the small-caps treatment: a
+% boxed layout has to apply \textsc inside its \parbox, because the parbox resets
+% font state and an outer \textsc is dropped. The default keeps the Kapitälchen
+% for layouts that draw no box.
+\providecommand{\newspaperheadstyle}[1]{\textsc{#1}}
 % \section takes an optional argument (the short form used for the TOC and
 % running head), so it cannot be redefined with a plain [1] — that fails with
 % "Argument of \@argdef has an extra }" at \begin{document}. Both the starred and
@@ -173,11 +193,11 @@
   \let\newspaper@sec\section
   \def\section{\@ifstar{\newspaper@sec@s}{\@dblarg\newspaper@sec@n}}%
   \long\def\newspaper@sec@s#1{%
-    \newspaper@sec*{\newspaperheadstyle{\textsc{#1}}}}%
+    \newspaper@sec*{\newspaperheadstyle{#1}}}%
   % Short form (#1) is left alone for the TOC and PDF bookmarks; only the printed
   % headline (#2) is decorated.
   \long\def\newspaper@sec@n[#1]#2{%
-    \newspaper@sec[#1]{\newspaperheadstyle{\textsc{#2}}}}%
+    \newspaper@sec[#1]{\newspaperheadstyle{#2}}}%
 }
 \makeatother
 
@@ -193,6 +213,9 @@
 % Layouts may override it; they must NOT override \fancyhead itself, or the folio
 % on the right is lost.
 \providecommand{\newspaperheadfont}{\small\sffamily}
+% Marker a layout can test to apply newspaper-only adjustments. Distinct from
+% \headingsclaimed, which the koma types also set.
+\newcommand{\isnewspapertype}{}
 \pagestyle{fancy}
 \fancyhf{}
 % Hairline: at this size a 0.4pt rule still reads as a border under a light sans
