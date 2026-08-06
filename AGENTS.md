@@ -96,8 +96,15 @@ Convert a page to PNG for visual review: `pdftoppm -png -r 110 -f N -l N in.pdf 
   `soul` is needed for `~~strikethrough~~`.
 - Fonts without a glyph render as an empty box; arrows/emoji are mapped in
   `common.tex.tmpl` via `newunicodechar`.
-- Long unbreakable `\texttt{...}` tokens overran table columns; `\texttt` is
-  redefined in the header to break after underscores.
+- Long unbreakable `\texttt{...}` tokens overran table columns, so `\texttt`
+  delegates to a **robust** `\wraptt` that breaks after underscores. It must be a
+  separate robust command, not a redefined `\texttt`: a heading containing code
+  lands in a moving argument (TOC entry, running head, PDF bookmark) where the
+  fragile `\def\_` fails with "Use of `\protect` doesn't match its definition"
+  (issue #4). Declaring `\texttt` itself robust instead recurses to "TeX capacity
+  exceeded", because it then expands via `\texttt␣` and the `\origtexttt` capture
+  points at the wrapper. Only `reference`/`komabook` triggered it, since they write
+  chapter marks as well as TOC entries.
 - TOC depth is `--toc-depth=2` by default (tool arg `toc_depth`).
 - `toc`, `number_sections` and `shift_headings` are tri-state
   (`auto`|`true`|`false`, default `auto`).

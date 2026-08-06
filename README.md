@@ -53,35 +53,37 @@ Styling is a `preset` named `<layout>-<type>`. **Layout** owns fonts, colour and
 page furniture; **type** owns structure. Any layout composes with any type, and
 an invalid name returns the list of valid ones.
 
-| layout | look |
-|---|---|
-| `classic` | the original: Palatino, no header rule, italic running heads |
-| `ista` | ista brand — navy Optima headings, navy links, no header rule |
-| `eisvogel` | slate accents, small-caps running heads, thin rule, centred page number |
+#### Which type?
 
-| type | structure |
-|---|---|
-| `report` | `article`. Running header, `N/M` footer, airy spacing. TOC when useful |
-| `newspaper` | `article` landscape, three columns. Didot masthead, Kapitälchen headlines, no TOC |
-| `reference` | `report` twoside. Chapters, mirrored running heads, three-level TOC always on |
-| `koma` | `scrartcl`. KOMA typography — computed type area, `\setkomafont` headings |
-| `komabook` | `scrreprt` twoside. The KOMA counterpart of `reference` |
+| type | use it for | what sets it apart |
+|---|---|---|
+| `report` | **the default.** One-off documents up to ~30 pages: specs, PRDs, notes, analyses | flat sections, TOC only when there is something to navigate |
+| `reference` | long-form documentation, tens to hundreds of pages | chapters, chapter-scoped numbering (`3.1`, not one long run), three-level TOC always on |
+| `koma` | like `report`, for typographically fussy or German-language work | KOMA-Script: type area computed from paper and font size, so a wider and more even measure than a fixed margin gives |
+| `komabook` | like `reference`, same reasoning | KOMA-Script with chapters |
+| `newspaper` | documents actually meant to look like a newspaper | landscape, three columns, Didot masthead, small-caps headlines, no TOC |
 
-The `koma*` types use KOMA-Script instead of the standard classes: the type area
-is computed from the paper and font size rather than a fixed margin, and heading
-fonts come from `\setkomafont`, which colours the section number along with its
-text. All of KOMA ships with BasicTeX, so nothing extra to install.
+Reach for `report` unless another type clearly fits. `reference` earns its
+chapters somewhere past twenty pages; below that the extra structure is noise.
+`newspaper` is the wrong shape for anything with code blocks or wide tables — a
+third of a landscape page cannot hold them.
 
-`reference` is for long-form documentation — tens to hundreds of pages. It uses
-`\chapter`, so numbering is chapter-scoped (`3.1`, not one continuous run), and
-a top-level heading in the source becomes a chapter.
+#### Which layout?
 
-Types may also set the document class, class options, body font and page margin — a newspaper
-is not set in a book face, and `article` has no `\chapter` for a reference to use.
+| layout | use it for | what sets it apart |
+|---|---|---|
+| `classic` | anything with no house style to follow | Palatino body, black Helvetica Neue headings, no header rule |
+| `ista` | ista work | navy Optima headings, navy links, mint table rules, code tokens in the brand palette |
+| `eisvogel` | matching Eisvogel output produced elsewhere | approximates the well-known pandoc template: slate accent, thin header rule, centred folio |
 
-Some types override the `auto` defaults — a newspaper never gets a TOC or
-numbered sections, whatever the heading count. An explicit `true`/`false` still
-wins.
+The two axes are independent, so `ista-reference` is ista branding on a long
+document and `eisvogel-report` is the Eisvogel look on a short one.
+
+A type may also set the document class, class options, body font and page margin
+— a newspaper is not set in a book face, and `article` has no `\chapter` for a
+reference to use. Some types override the `auto` defaults too: a newspaper never
+gets a TOC or numbered sections whatever the heading count, and a reference always
+does. An explicit `true`/`false` still wins.
 
 ### Heading promotion
 

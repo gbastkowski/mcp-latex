@@ -16,11 +16,23 @@
 % single unbreakable \texttt token and overrun narrow table columns. Redefine
 % \texttt so it allows a line break after each `_`, `.`, `/`, `-` or `:` — the
 % content is unchanged, it just wraps instead of colliding with the next cell.
+%
+% The wrapper is a SEPARATE robust command that \texttt delegates to, rather than
+% \texttt being redefined in place. A heading containing code lands in a moving
+% argument — the TOC entry, the running head, a PDF bookmark — and the fragile
+% \def\_ inside a plain \renewcommand fails there with "Use of \protect doesn't
+% match its definition" (issue #4). It only bit the types that write chapter marks
+% as well as TOC entries, `reference` and `komabook`, so a plain report hid it.
+%
+% \origtexttt has to be captured before any of this: declaring \texttt itself
+% robust makes it expand via \texttt␣, so the capture would point at the wrapper
+% and recurse until "TeX capacity exceeded".
 \let\origtexttt\texttt
-\renewcommand{\texttt}[1]{{%
+\DeclareRobustCommand{\wraptt}[1]{{%
   \def\_{\textunderscore\allowbreak}%
   \origtexttt{#1}%
 }}
+\renewcommand{\texttt}[1]{\wraptt{#1}}
 
 % The body fonts (Palatino / Latin Modern) have no glyphs for arrows or emoji,
 % which otherwise render as empty boxes. Map the common ones to text/math

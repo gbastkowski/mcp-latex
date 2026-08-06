@@ -527,7 +527,34 @@ server.tool(
       .describe(
         "Styling preset, '<layout>-<type>'. Layout controls fonts/colour/" +
           "furniture, type controls structure. Any layout composes with any " +
-          "type; an invalid value returns the list of valid presets.",
+          "type; an invalid value returns the list of valid presets.\n" +
+          "\n" +
+          "TYPE — pick by document shape:\n" +
+          "  report     default. One-off documents up to ~30 pages: specs, PRDs, " +
+          "notes, analyses. Flat sections, TOC only when there is something to " +
+          "navigate. Choose this unless another type clearly fits.\n" +
+          "  reference  long-form documentation, tens to hundreds of pages. Adds " +
+          "chapters (a top-level heading becomes one), chapter-scoped numbering " +
+          "(3.1, not one long run), a three-level TOC always on. Use when the " +
+          "document is navigated rather than read start to finish.\n" +
+          "  koma       like `report`, but KOMA-Script: the type area is computed " +
+          "from paper and font size instead of a fixed margin, giving a wider, " +
+          "more even measure. Prefer for German-language or typographically fussy " +
+          "documents; otherwise `report` is the safer default.\n" +
+          "  komabook   like `reference`, but KOMA-Script. Same trade-off.\n" +
+          "  newspaper  a broadsheet pastiche: landscape, three columns, Didot " +
+          "masthead, small-caps headlines, no TOC. Only for documents actually " +
+          "meant to look like a newspaper — it is the wrong shape for anything " +
+          "with code blocks or wide tables, which a narrow column cannot hold.\n" +
+          "\n" +
+          "LAYOUT — pick by house style:\n" +
+          "  classic    the original look. Palatino body, black headings in " +
+          "Helvetica Neue, no header rule. Neutral; use when nothing else applies.\n" +
+          "  ista       ista brand. Navy Optima headings, navy links, mint table " +
+          "rules, code tokens in the brand palette. Use for ista work.\n" +
+          "  eisvogel   approximates the well-known pandoc Eisvogel template: " +
+          "slate accent, thin header rule, centred folio. Use when a document " +
+          "should match Eisvogel output from elsewhere.",
       ),
     logo_path: z
       .string()
