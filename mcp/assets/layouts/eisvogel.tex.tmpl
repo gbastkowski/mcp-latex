@@ -44,6 +44,12 @@
 }
 \makeatother
 
+% KOMA types style headings through \setkomafont rather than \@startsection, so
+% they skip the block above entirely. Feed the same accent through the hook they
+% provide, so `koma-*` presets still look like Eisvogel.
+\providecommand{\komaheadcolor}{}
+\renewcommand{\komaheadcolor}{\color{eisvogelAccent}}
+
 % Thin rule under the running header — Eisvogel's most recognisable trait.
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\headrule}{\hbox to\headwidth{\color{eisvogelRule}\leaders\hrule height \headrulewidth\hfill}}

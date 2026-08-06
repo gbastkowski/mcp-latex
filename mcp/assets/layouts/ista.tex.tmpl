@@ -45,6 +45,12 @@
 \makeatother
 \fi
 
+% KOMA types style headings through \setkomafont rather than \@startsection, so
+% they skip the guarded block above entirely. Feed the same colour through the
+% hook they provide, so `koma-*` presets still look like this layout.
+\providecommand{\komaheadcolor}{}
+\renewcommand{\komaheadcolor}{\color{istaNavy}}
+
 % No rule under the running header: a full-width mint band reads as a banner on
 % paper and fights the body copy. The brand shows up in the navy headings, the
 % navy links and the coloured running heads instead.

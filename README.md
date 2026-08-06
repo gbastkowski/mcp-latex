@@ -61,6 +61,13 @@ an invalid name returns the list of valid ones.
 | `report` | `article`. Running header, `N/M` footer, airy spacing. TOC when useful |
 | `newspaper` | `article` landscape, three columns. Didot masthead, Kapitälchen headlines, no TOC |
 | `reference` | `report` twoside. Chapters, mirrored running heads, three-level TOC always on |
+| `koma` | `scrartcl`. KOMA typography — computed type area, `\setkomafont` headings |
+| `komabook` | `scrreprt` twoside. The KOMA counterpart of `reference` |
+
+The `koma*` types use KOMA-Script instead of the standard classes: the type area
+is computed from the paper and font size rather than a fixed margin, and heading
+fonts come from `\setkomafont`, which colours the section number along with its
+text. All of KOMA ships with BasicTeX, so nothing extra to install.
 
 `reference` is for long-form documentation — tens to hundreds of pages. It uses
 `\chapter`, so numbering is chapter-scoped (`3.1`, not one continuous run), and

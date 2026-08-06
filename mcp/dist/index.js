@@ -21134,7 +21134,9 @@ var TYPE_DEFAULTS = {
   newspaper: { toc: false, numberSections: false },
   // A reference document is navigated, not read through: the TOC is always
   // worth its pages and every heading needs a number to cite.
-  reference: { toc: true, numberSections: true }
+  reference: { toc: true, numberSections: true },
+  // Same reasoning for the KOMA long-form variant.
+  komabook: { toc: true, numberSections: true }
 };
 var TYPE_CLASSES = {
   reference: {
@@ -21154,6 +21156,19 @@ var TYPE_CLASSES = {
   newspaper: {
     documentclass: "article",
     classoption: ["landscape"]
+  },
+  // KOMA-Script variants. scrartcl/scrreprt compute their type area from the
+  // paper and font size rather than a fixed margin, and expose heading fonts
+  // through \setkomafont — which replaces the \@startsection patching the
+  // standard-class types need. All of KOMA is in BasicTeX, so no extra install.
+  koma: {
+    documentclass: "scrartcl"
+  },
+  komabook: {
+    documentclass: "scrreprt",
+    classoption: ["twoside", "openright"],
+    tocDepth: 3,
+    topLevelDivision: "chapter"
   }
 };
 var TYPE_FONTS = {

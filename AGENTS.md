@@ -149,7 +149,15 @@ from a zero chapter counter as `0.1`.
 A `newspaper` has to refuse the TOC in `TYPE_DEFAULTS`, because a partial cannot
 decline pandoc's `--toc` flag.
 
-Demos: `scratchpad/render-demos.py` renders all 9 presets **through the server**
+KOMA types (`koma`, `komabook`) set `\headingsclaimed` so the layouts skip their
+`\@startsection` patch, and take their colour from a `\komaheadcolor` hook that
+each layout fills in — `\addtokomafont{disposition}` then covers every heading
+level at once, section numbers included. That one interface replaces the
+`\@startsection` + `\let\normalcolor\relax` workaround the standard-class types
+need. `fancyhdr` coexists with `scrartcl`/`scrreprt` (KOMA would prefer
+`scrlayer-scrpage`), so every layout partial works unchanged.
+
+Demos: `scratchpad/render-demos.py` renders all 15 presets **through the server**
 over JSON-RPC (not by assembling pandoc calls, which would skip preset
 composition, type defaults and heading shift). Reports and newspapers use
 different source documents, since a technical doc says nothing about whether a
