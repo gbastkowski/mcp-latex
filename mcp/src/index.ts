@@ -49,7 +49,12 @@ const TYPE_DEFAULTS: Record<string, { toc?: boolean; numberSections?: boolean }>
 // class before any header include is read.
 const TYPE_CLASSES: Record<
   string,
-  { documentclass: string; classoption?: string[]; tocDepth?: number }
+  {
+    documentclass: string;
+    classoption?: string[];
+    tocDepth?: number;
+    topLevelDivision?: "chapter" | "section" | "part";
+  }
 > = {
   reference: {
     documentclass: "report",
@@ -57,6 +62,11 @@ const TYPE_CLASSES: Record<
     // At this length the TOC is the primary navigation, so it goes deeper than
     // the two levels a short report wants.
     tocDepth: 3,
+    // `report` numbers sections within a chapter, but pandoc's top level is
+    // \section unless told otherwise — so nothing ever issued a \chapter, the
+    // chapter counter stayed at zero, and every section came out as "0.1",
+    // "0.1.2.1", with a running head reading "0.1 Overview".
+    topLevelDivision: "chapter",
   },
   // Landscape gives the three columns a usable measure: at A4 portrait a third
   // of the width cannot hold a line of prose without hyphenating every word.
@@ -390,6 +400,7 @@ function buildPandocArgs(opts: {
   format: InputFormat;
   documentclass: string;
   classoption: string[];
+  topLevelDivision?: string;
   papersize: string;
   fontsize: string;
   margin: string;
@@ -430,6 +441,8 @@ function buildPandocArgs(opts: {
   // (Latin Modern), which is the only reliable choice in the Docker image
   // since it ships no fontconfig system fonts.
   for (const opt of opts.classoption) a.push("-V", `classoption=${opt}`);
+  if (opts.topLevelDivision)
+    a.push(`--top-level-division=${opts.topLevelDivision}`);
   if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
   if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
   // Promote every heading one level: the lone H1 becomes the document title
@@ -718,6 +731,7 @@ server.tool(
       const typeClass = TYPE_CLASSES[type];
       const documentclass = typeClass?.documentclass ?? "article";
       const classoption = typeClass?.classoption ?? [];
+      const topLevelDivision = typeClass?.topLevelDivision;
       // A type may want a deeper TOC than the default, but an explicit caller
       // value still wins.
       const effectiveTocDepth =
@@ -745,6 +759,7 @@ server.tool(
           format: fmt,
           documentclass,
           classoption,
+          topLevelDivision,
           shiftHeadings: shift,
           papersize,
           fontsize,
@@ -770,6 +785,7 @@ server.tool(
           format: fmt,
           documentclass,
           classoption,
+          topLevelDivision,
           shiftHeadings: shift,
           papersize,
           fontsize,

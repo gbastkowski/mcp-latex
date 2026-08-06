@@ -21141,7 +21141,12 @@ var TYPE_CLASSES = {
     classoption: ["twoside", "openright"],
     // At this length the TOC is the primary navigation, so it goes deeper than
     // the two levels a short report wants.
-    tocDepth: 3
+    tocDepth: 3,
+    // `report` numbers sections within a chapter, but pandoc's top level is
+    // \section unless told otherwise — so nothing ever issued a \chapter, the
+    // chapter counter stayed at zero, and every section came out as "0.1",
+    // "0.1.2.1", with a running head reading "0.1 Overview".
+    topLevelDivision: "chapter"
   },
   // Landscape gives the three columns a usable measure: at A4 portrait a third
   // of the width cannot hold a line of prose without hyphenating every word.
@@ -21369,6 +21374,8 @@ function buildPandocArgs(opts) {
     "toccolor=black"
   ];
   for (const opt of opts.classoption) a.push("-V", `classoption=${opt}`);
+  if (opts.topLevelDivision)
+    a.push(`--top-level-division=${opts.topLevelDivision}`);
   if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
   if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
   if (opts.shiftHeadings) a.push("--shift-heading-level-by=-1");
@@ -21521,6 +21528,7 @@ server.tool(
       const typeClass = TYPE_CLASSES[type];
       const documentclass = typeClass?.documentclass ?? "article";
       const classoption = typeClass?.classoption ?? [];
+      const topLevelDivision = typeClass?.topLevelDivision;
       const effectiveTocDepth = toc_depth === 2 && typeClass?.tocDepth ? typeClass.tocDepth : toc_depth;
       const typeDefaults = TYPE_DEFAULTS[type] ?? {};
       const wantToc = toc === "auto" ? typeDefaults.toc !== void 0 ? typeDefaults.toc : tocMakesSense(source, fmt, effectiveTocDepth, shift) : toc === "true";
@@ -21534,6 +21542,7 @@ server.tool(
           format: fmt,
           documentclass,
           classoption,
+          topLevelDivision,
           shiftHeadings: shift,
           papersize,
           fontsize,
@@ -21555,6 +21564,7 @@ server.tool(
           format: fmt,
           documentclass,
           classoption,
+          topLevelDivision,
           shiftHeadings: shift,
           papersize,
           fontsize,
