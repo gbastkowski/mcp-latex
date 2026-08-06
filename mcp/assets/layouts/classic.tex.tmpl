@@ -26,3 +26,18 @@
 % newspaper type's 0.2pt is already a hairline, and this takes it lower still so
 % the head reads as a caption rather than a banner.
 \renewcommand{\headrulewidth}{0.1pt}
+
+% This layout never set a sans family, so anything reaching for \sffamily — the
+% newspaper running head, and the KOMA heading dispositions — silently fell back
+% to Latin Modern Sans, which clashes with the serif body exactly the way it did
+% in the ista headings before this was fixed there. Use the same neutral grotesque
+% Eisvogel uses, so classic-koma and classic-komabook set their headings in the
+% same families as eisvogel-koma and eisvogel-komabook.
+\usepackage{fontspec}
+\IfFontExistsTF{Helvetica Neue}{\setsansfont{Helvetica Neue}}{}
+
+% KOMA types style headings through \setkomafont and skip the \@startsection
+% block, so give them the sans dispositions explicitly rather than KOMA's
+% serif-by-default.
+\providecommand{\komaheadcolor}{}
+\renewcommand{\komaheadcolor}{\sffamily}
