@@ -8,5 +8,16 @@
 % \renewcommand would be an "undefined control sequence" error under every other
 % type, which reads this same file.
 % \strut keeps the box height uniform whether or not the text has descenders.
+% \linewidth, not \textwidth: inside multicol \textwidth is still the full
+% page, so a \textwidth box overflows its column and runs across the others.
+% \linewidth tracks the current column measure.
+% \framebox with an explicit width, not \fbox: \fbox shrinks to its content, so
+% headlines of different lengths produced boxes of different widths. The width
+% subtracts twice the rule and twice the separation so the frame lands exactly on
+% the text block rather than overhanging it. \parbox lets a long headline wrap
+% inside the box instead of overflowing the line.
 \providecommand{\newspaperheadstyle}[1]{#1}
-\renewcommand{\newspaperheadstyle}[1]{\fbox{\strut #1}}
+\renewcommand{\newspaperheadstyle}[1]{%
+  \framebox[\dimexpr\linewidth-2\fboxrule-2\fboxsep\relax][l]{%
+    \parbox{\dimexpr\linewidth-4\fboxrule-4\fboxsep\relax}{\strut #1\strut}}%
+}

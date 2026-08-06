@@ -21130,7 +21130,25 @@ var TYPES_DIR = join(ASSETS_DIR, "types");
 var DEFAULT_PRESET = "classic-report";
 var TYPE_DEFAULTS = {
   // A newspaper has no table of contents and no numbered sections.
-  newspaper: { toc: false, numberSections: false }
+  newspaper: { toc: false, numberSections: false },
+  // A reference document is navigated, not read through: the TOC is always
+  // worth its pages and every heading needs a number to cite.
+  reference: { toc: true, numberSections: true }
+};
+var TYPE_CLASSES = {
+  reference: {
+    documentclass: "report",
+    classoption: ["twoside", "openright"],
+    // At this length the TOC is the primary navigation, so it goes deeper than
+    // the two levels a short report wants.
+    tocDepth: 3
+  },
+  // Landscape gives the three columns a usable measure: at A4 portrait a third
+  // of the width cannot hold a line of prose without hyphenating every word.
+  newspaper: {
+    documentclass: "article",
+    classoption: ["landscape"]
+  }
 };
 var TYPE_FONTS = {
   // Higher stroke contrast than Palatino and old-style figures — a newspaper
@@ -21334,7 +21352,7 @@ function buildPandocArgs(opts) {
     "--pdf-engine=xelatex",
     `--include-in-header=${opts.header}`,
     "-V",
-    "documentclass=article",
+    `documentclass=${opts.documentclass}`,
     "-V",
     `papersize=${opts.papersize}`,
     "-V",
@@ -21350,6 +21368,7 @@ function buildPandocArgs(opts) {
     "-V",
     "toccolor=black"
   ];
+  for (const opt of opts.classoption) a.push("-V", `classoption=${opt}`);
   if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
   if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
   if (opts.shiftHeadings) a.push("--shift-heading-level-by=-1");
@@ -21499,8 +21518,12 @@ server.tool(
       const source = srcInline ?? await readFile(inputFile, "utf8").catch(() => "");
       const headingCount = fmt === "org" ? countOrgHeadings(source) : countHeadings(source);
       const shift = shift_headings === "auto" ? shouldShiftHeadings(source, fmt) : shift_headings === "true";
+      const typeClass = TYPE_CLASSES[type];
+      const documentclass = typeClass?.documentclass ?? "article";
+      const classoption = typeClass?.classoption ?? [];
+      const effectiveTocDepth = toc_depth === 2 && typeClass?.tocDepth ? typeClass.tocDepth : toc_depth;
       const typeDefaults = TYPE_DEFAULTS[type] ?? {};
-      const wantToc = toc === "auto" ? typeDefaults.toc !== void 0 ? typeDefaults.toc : tocMakesSense(source, fmt, toc_depth, shift) : toc === "true";
+      const wantToc = toc === "auto" ? typeDefaults.toc !== void 0 ? typeDefaults.toc : tocMakesSense(source, fmt, effectiveTocDepth, shift) : toc === "true";
       const wantNumbers = number_sections === "auto" && typeDefaults.numberSections !== void 0 ? typeDefaults.numberSections : resolveAuto(number_sections, headingCount);
       let res;
       if (chosen === "native") {
@@ -21509,6 +21532,8 @@ server.tool(
           output: outFile,
           header: headerFile,
           format: fmt,
+          documentclass,
+          classoption,
           shiftHeadings: shift,
           papersize,
           fontsize,
@@ -21516,7 +21541,7 @@ server.tool(
           mainFont,
           monoFont,
           toc: wantToc,
-          tocDepth: toc_depth,
+          tocDepth: effectiveTocDepth,
           numberSections: wantNumbers
         });
         res = await run("pandoc", pandocArgs, dirname(inputFile));
@@ -21528,6 +21553,8 @@ server.tool(
           output: "/data/out.pdf",
           header: "/data/header.tex",
           format: fmt,
+          documentclass,
+          classoption,
           shiftHeadings: shift,
           papersize,
           fontsize,
@@ -21535,7 +21562,7 @@ server.tool(
           mainFont,
           monoFont,
           toc: wantToc,
-          tocDepth: toc_depth,
+          tocDepth: effectiveTocDepth,
           numberSections: wantNumbers
         });
         const dockerArgs = [

@@ -1,0 +1,63 @@
+% Type: reference — long-form documentation, tens to hundreds of pages.
+%
+% Differs from `report` in ways that only matter at length:
+%   - \chapter exists (the server sets documentclass=report for this type), so
+%     numbering is chapter-scoped: 3.1, 3.2 rather than one 400-item run.
+%   - twoside: mirrored margins and recto/verso running heads, for something
+%     that will be printed and bound.
+%   - a deeper TOC, always on — at this size it is the primary navigation.
+%
+% The server supplies the documentclass and the TOC/numbering defaults
+% (TYPE_CLASSES / TYPE_DEFAULTS in mcp/src/index.ts); a partial cannot set either.
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+% NB: `emptypage` would clear the running head from the blank verso before each
+% chapter, but it is not in BasicTeX, so it is deliberately not used here.
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Twoside running heads: chapter on the verso, section on the recto, page number
+% in the outer corner so it is visible while thumbing a bound copy.
+\fancyhead[LE]{\small\itshape\nouppercase{\leftmark}}
+\fancyhead[RO]{\small\itshape\nouppercase{\rightmark}}
+\fancyhead[RE,LO]{\small __HEADER_RIGHT__}
+\fancyfoot[LE,RO]{\small\thepage}
+\fancyfoot[RE,LO]{\small __TITLE__}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[LE,RO]{\small\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
+
+% \leftmark/\rightmark need the marks set; report sets \chaptermark from
+% \chapter and \sectionmark from \section, but strips the number by default.
+\renewcommand{\chaptermark}[1]{\markboth{\thechapter\quad #1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\quad #1}}
+
+% Reference text is scanned, not read start to finish: generous paragraph
+% separation and no first-line indent make an entry easier to find on the page.
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+
+% Chapter openings are quieter than the LaTeX default, which wastes a third of
+% the page on "Chapter 3" above the title. Keep the page break, drop the drama.
+\makeatletter
+\renewcommand{\@makechapterhead}[1]{%
+  \vspace*{1.5em}%
+  {\parindent\z@\raggedright\normalfont
+    \interlinepenalty\@M
+    \Large\bfseries \@chapapp\space\thechapter
+    \par\nobreak\vskip 0.4em
+    \huge\bfseries #1\par\nobreak
+    \vskip 1.2em}}
+\renewcommand{\@makeschapterhead}[1]{%
+  \vspace*{1.5em}%
+  {\parindent\z@\raggedright\normalfont
+    \interlinepenalty\@M
+    \huge\bfseries #1\par\nobreak
+    \vskip 1.2em}}
+\makeatother

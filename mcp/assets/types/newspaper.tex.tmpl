@@ -1,16 +1,48 @@
 % Type: newspaper — SCAFFOLD. Single column with a retro masthead. Shape this in
 % the project it is meant for; the structure below is a starting point.
 %
-% Deliberately NOT multicol. Two columns forced two workarounds — pandoc emits
-% every table as a longtable, which hard-errors inside multicols ("longtable not
-% in 1-column mode"), and code blocks overflowed the narrow measure and clipped
-% mid-line. Single column keeps tables breakable and code intact.
+% Three columns on a landscape page. The server sets classoption=landscape
+% (TYPE_CLASSES); geometry needs telling separately, below, or the class option
+% rotates the paper without moving the text block.
 %
 % Open questions for that project: bylines, rules between stories, whether a
 % lead story spans differently.
 \usepackage{fancyhdr}
 \usepackage{lastpage}
 \usepackage{fontspec}
+\usepackage{multicol}
+
+% geometry is already loaded by pandoc with the margin variable, so reuse it
+% rather than re-passing options: \geometry applies landscape to the text block.
+\geometry{landscape}
+
+% Three-column body. multicol (not \twocolumn) balances the final page and
+% cooperates with pandoc's output.
+% The masthead has to span the full page, so \maketitle runs BEFORE multicols
+% opens. pandoc emits \maketitle as the first thing in the body, and
+% \AtBeginDocument hooks fire before that, so opening the environment here would
+% trap the nameplate inside column one. Deferred via \@ifundefined on a flag that
+% \maketitle sets: see the redefinition below, which opens the columns itself.
+% Close only if \maketitle actually opened them: a document with no title emits
+% no \maketitle, and an unmatched \end{multicols} is a hard error.
+\makeatletter
+\newif\ifnewspaper@columnsopen
+\AtEndDocument{\ifnewspaper@columnsopen\end{multicols}\fi}
+\makeatother
+\setlength{\columnsep}{1.4em}
+\setlength{\columnseprule}{0.4pt}
+
+% pandoc emits every table as a longtable, which hard-errors inside multicols
+% ("longtable not in 1-column mode") because it is built to break across pages in
+% a single column. Alias it to a plain tabular: no page-breaking, but it renders
+% inside a column. Keep newspaper tables small.
+\usepackage{array}
+\let\longtable\tabular
+\let\endlongtable\endtabular
+\renewcommand{\endhead}{}
+\renewcommand{\endfirsthead}{}
+\renewcommand{\endlastfoot}{}
+\renewcommand{\endfoot}{}
 
 % --- Masthead ---------------------------------------------------------------
 % A 19th-century newspaper nameplate: a high-contrast Didone in even letter-
@@ -47,6 +79,10 @@
     \rule{\textwidth}{0.4pt}
   \end{center}
   \vspace{0.8em}
+  % Open the columns AFTER the nameplate, so the masthead spans the full page
+  % width instead of being trapped in column one.
+  \begin{multicols}{3}%
+  \global\newspaper@columnsopentrue%
 }
 \makeatother
 
@@ -114,16 +150,21 @@
 % optional forms have to be declared, and with \long\def rather than
 % \newcommand: inside \AtBeginDocument a \newcommand for an @-name re-declares on
 % each expansion and trips the same error.
+%
+% Small capitals (Kapitälchen), NOT \MakeUppercase: the text keeps its own
+% capitalisation, so real capitals stay full height and the lowercase letters
+% become small capitals beside them. \MakeUppercase flattens that distinction and
+% loses the shape a reader uses to tell a proper noun from the rest.
 \makeatletter
 \AtBeginDocument{%
   \let\newspaper@sec\section
   \def\section{\@ifstar{\newspaper@sec@s}{\@dblarg\newspaper@sec@n}}%
   \long\def\newspaper@sec@s#1{%
-    \newspaper@sec*{\newspaperheadstyle{\MakeUppercase{#1}}}}%
-  % Short form (#1) stays mixed case for the TOC and PDF bookmarks; only the
-  % printed headline (#2) is decorated and uppercased.
+    \newspaper@sec*{\newspaperheadstyle{\textsc{#1}}}}%
+  % Short form (#1) is left alone for the TOC and PDF bookmarks; only the printed
+  % headline (#2) is decorated.
   \long\def\newspaper@sec@n[#1]#2{%
-    \newspaper@sec[#1]{\newspaperheadstyle{\MakeUppercase{#2}}}}%
+    \newspaper@sec[#1]{\newspaperheadstyle{\textsc{#2}}}}%
 }
 \makeatother
 

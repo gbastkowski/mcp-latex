@@ -56,7 +56,16 @@
 % Newspaper headlines get a ruled box, in the brand navy. The hook only exists
 % under the newspaper type, so declare-then-override — a bare \renewcommand would
 % be an "undefined control sequence" under every other type reading this file.
+% \linewidth, not \textwidth: inside multicol \textwidth is still the full
+% page, so a \textwidth box overflows its column and runs across the others.
+% \linewidth tracks the current column measure.
+% \framebox with an explicit width, not \fbox: \fbox shrinks to its content, so
+% headlines of different lengths produced boxes of different widths. \parbox lets
+% a long headline wrap inside the box rather than overflowing the line.
 \providecommand{\newspaperheadstyle}[1]{#1}
 \renewcommand{\newspaperheadstyle}[1]{%
-  {\color{istaNavy}\fboxrule=0.8pt\fbox{\strut\color{istaNavy}#1}}%
+  {\color{istaNavy}\fboxrule=0.8pt%
+    \framebox[\dimexpr\linewidth-2\fboxrule-2\fboxsep\relax][l]{%
+      \parbox{\dimexpr\linewidth-4\fboxrule-4\fboxsep\relax}{%
+        \color{istaNavy}\strut #1\strut}}}%
 }

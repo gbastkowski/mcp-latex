@@ -38,7 +38,33 @@ const TYPE_DEFAULTS: Record<string, { toc?: boolean; numberSections?: boolean }>
   {
     // A newspaper has no table of contents and no numbered sections.
     newspaper: { toc: false, numberSections: false },
+    // A reference document is navigated, not read through: the TOC is always
+    // worth its pages and every heading needs a number to cite.
+    reference: { toc: true, numberSections: true },
   };
+
+// Per-type LaTeX document class and class options. `article` has no \chapter,
+// which a long reference document needs, and twoside only makes sense for
+// something long enough to bind. A partial cannot set either — pandoc passes the
+// class before any header include is read.
+const TYPE_CLASSES: Record<
+  string,
+  { documentclass: string; classoption?: string[]; tocDepth?: number }
+> = {
+  reference: {
+    documentclass: "report",
+    classoption: ["twoside", "openright"],
+    // At this length the TOC is the primary navigation, so it goes deeper than
+    // the two levels a short report wants.
+    tocDepth: 3,
+  },
+  // Landscape gives the three columns a usable measure: at A4 portrait a third
+  // of the width cannot hold a line of prose without hyphenating every word.
+  newspaper: {
+    documentclass: "article",
+    classoption: ["landscape"],
+  },
+};
 
 // Per-type body serif, used only when the caller left main_font at the default.
 // This lives here rather than in the partial because pandoc's `-V mainfont`
@@ -362,6 +388,8 @@ function buildPandocArgs(opts: {
   output: string;
   header: string;
   format: InputFormat;
+  documentclass: string;
+  classoption: string[];
   papersize: string;
   fontsize: string;
   margin: string;
@@ -382,7 +410,7 @@ function buildPandocArgs(opts: {
     "--pdf-engine=xelatex",
     `--include-in-header=${opts.header}`,
     "-V",
-    "documentclass=article",
+    `documentclass=${opts.documentclass}`,
     "-V",
     `papersize=${opts.papersize}`,
     "-V",
@@ -401,6 +429,7 @@ function buildPandocArgs(opts: {
   // Fonts are optional: an empty value means "let xelatex use its default"
   // (Latin Modern), which is the only reliable choice in the Docker image
   // since it ships no fontconfig system fonts.
+  for (const opt of opts.classoption) a.push("-V", `classoption=${opt}`);
   if (opts.mainFont) a.push("-V", `mainfont=${opts.mainFont}`);
   if (opts.monoFont) a.push("-V", `monofont=${opts.monoFont}`);
   // Promote every heading one level: the lone H1 becomes the document title
@@ -684,12 +713,22 @@ server.tool(
           ? shouldShiftHeadings(source, fmt)
           : shift_headings === "true";
 
+      // Document class comes from the type; a long reference needs \chapter and
+      // twoside, which `article` cannot give.
+      const typeClass = TYPE_CLASSES[type];
+      const documentclass = typeClass?.documentclass ?? "article";
+      const classoption = typeClass?.classoption ?? [];
+      // A type may want a deeper TOC than the default, but an explicit caller
+      // value still wins.
+      const effectiveTocDepth =
+        toc_depth === 2 && typeClass?.tocDepth ? typeClass.tocDepth : toc_depth;
+
       const typeDefaults = TYPE_DEFAULTS[type] ?? {};
       const wantToc =
         toc === "auto"
           ? typeDefaults.toc !== undefined
             ? typeDefaults.toc
-            : tocMakesSense(source, fmt, toc_depth, shift)
+            : tocMakesSense(source, fmt, effectiveTocDepth, shift)
           : toc === "true";
       const wantNumbers =
         number_sections === "auto" && typeDefaults.numberSections !== undefined
@@ -704,6 +743,8 @@ server.tool(
           output: outFile,
           header: headerFile,
           format: fmt,
+          documentclass,
+          classoption,
           shiftHeadings: shift,
           papersize,
           fontsize,
@@ -711,7 +752,7 @@ server.tool(
           mainFont,
           monoFont,
           toc: wantToc,
-          tocDepth: toc_depth,
+          tocDepth: effectiveTocDepth,
           numberSections: wantNumbers,
         });
         res = await run("pandoc", pandocArgs, dirname(inputFile));
@@ -727,6 +768,8 @@ server.tool(
           output: "/data/out.pdf",
           header: "/data/header.tex",
           format: fmt,
+          documentclass,
+          classoption,
           shiftHeadings: shift,
           papersize,
           fontsize,
@@ -734,7 +777,7 @@ server.tool(
           mainFont,
           monoFont,
           toc: wantToc,
-          tocDepth: toc_depth,
+          tocDepth: effectiveTocDepth,
           numberSections: wantNumbers,
         });
         // The custom image bakes in the header's LaTeX packages, so the
