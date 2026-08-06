@@ -164,8 +164,8 @@ different source documents, since a technical doc says nothing about whether a
 masthead works, and a four-page report reveals nothing about chapter openings or
 twoside running heads.
 
-`SERVER_VERSION` in `mcp/src/index.ts` must be kept in step with both
-`package.json` files. It is reported in the MCP handshake and appended to every
+`SERVER_VERSION` in `mcp/src/index.ts` must be kept in step with all three
+manifests: `package.json`, `mcp/package.json` and `.claude-plugin/plugin.json`. It is reported in the MCP handshake and appended to every
 render result — npx caches git installs, so that string is the only reliable way
 to confirm which build produced a PDF.
 
