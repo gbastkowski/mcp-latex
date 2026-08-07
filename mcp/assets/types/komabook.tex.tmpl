@@ -65,8 +65,8 @@
 % titling supplies \pretitle/\posttitle; it is in BasicTeX.
 \usepackage{titling}
 \makeatletter
-\newcommand{\mcpl@logo}{__LOGO_PATH__}
-\newcommand{\mcpl@stamp}{__DOC_STAMP__}
+\def\mcpl@logo{__LOGO_PATH__}
+\def\mcpl@stamp{__DOC_STAMP__}
 % The KOMA classes define \subtitle themselves, so pandoc's \providecommand for it
 % is a no-op and its \subtitle{...} stores the value in KOMA's own variable — which
 % only KOMA's \maketitle reads, and titling has replaced that. The subtitle was
