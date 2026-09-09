@@ -5,9 +5,11 @@ A Claude Code **plugin** that renders Markdown to a nicely-styled PDF
 header with an `N/M` page marker, subtle dark-blue links, A4 — via
 **pandoc + xelatex**.
 
-It bundles two things:
+It bundles:
 
 - a **skill** (`skills/latex-pdf/`) that tells Claude when and how to render;
+- a second **skill** (`skills/reference-doc/`) that reads a codebase, writes a
+  chaptered `reference.md` and renders it as a reference manual;
 - an **MCP server** (`mcp/`, TypeScript) exposing the tool
   `render_markdown_to_pdf`, usable from any MCP client.
 
@@ -16,6 +18,7 @@ It bundles two things:
 ```
 .claude-plugin/plugin.json    plugin manifest (declares the MCP server)
 skills/latex-pdf/SKILL.md      instructions, prerequisites, gotchas
+skills/reference-doc/SKILL.md  author + render a project reference manual
 mcp/                           TypeScript MCP server
   src/index.ts                 render_markdown_to_pdf tool
   assets/common.tex.tmpl       glyph maps + table-wrap fix (shared)
@@ -159,7 +162,7 @@ exposes it as a `bin`:
 "latex": { "type": "local", "command": ["npx", "-y", "github:gbastkowski/mcp-latex"] }
 ```
 
-`hosts/install.sh` writes that config plus a ported skill/command:
+`hosts/install.sh` writes that config plus the ported skills and commands:
 
 ```sh
 ./hosts/install.sh opencode            # ./.opencode/ + ./opencode.json
@@ -167,11 +170,11 @@ exposes it as a `bin`:
 ./hosts/install.sh hermes              # ~/.hermes/  (then /reload-mcp)
 ```
 
-| host | MCP config | skill | command |
-|------|-----------|-------|---------|
-| Claude Code | `.claude-plugin/plugin.json` | `skills/latex-pdf/` | `/mcp-latex:render-pdf` |
-| opencode | `opencode.json` → `mcp.latex` | `.opencode/skills/latex-pdf/` | `/latex-pdf` |
-| hermes | `~/.hermes/config.yaml` → `mcp_servers.latex` | `~/.hermes/skills/latex-pdf/` | `/latex-pdf` (skill) |
+| host | MCP config | skills | commands |
+|------|-----------|--------|----------|
+| Claude Code | `.claude-plugin/plugin.json` | `skills/latex-pdf/`, `skills/reference-doc/` | `/mcp-latex:render-pdf`, `/mcp-latex:reference-doc` |
+| opencode | `opencode.json` → `mcp.latex` | `.opencode/skills/latex-pdf/`, `.opencode/skills/reference-doc/` | `/latex-pdf`, `/latex-reference-doc` |
+| hermes | `~/.hermes/config.yaml` → `mcp_servers.latex` | `~/.hermes/skills/latex-pdf/`, `~/.hermes/skills/reference-doc/` | (skills only) |
 
 If the target config already exists, the installer prints the block to merge
 rather than overwriting it. The templates live in `hosts/opencode/` and

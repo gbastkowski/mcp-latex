@@ -29,9 +29,17 @@ case "$HOST" in
       dest="$PWD/.opencode"
       cfg="$PWD/opencode.json"
     fi
-    mkdir -p "$dest/commands" "$dest/skills/latex-pdf"
-    subst "$ROOT/hosts/opencode/commands/latex-pdf.md" > "$dest/commands/latex-pdf.md"
-    subst "$ROOT/hosts/opencode/skills/latex-pdf/SKILL.md" > "$dest/skills/latex-pdf/SKILL.md"
+    # Loop over whatever the port directories hold, so adding a command or a
+    # skill needs no edit here.
+    mkdir -p "$dest/commands"
+    for cmd in "$ROOT"/hosts/opencode/commands/*.md; do
+      subst "$cmd" > "$dest/commands/$(basename "$cmd")"
+    done
+    for skill in "$ROOT"/hosts/opencode/skills/*/; do
+      name=$(basename "$skill")
+      mkdir -p "$dest/skills/$name"
+      subst "$skill/SKILL.md" > "$dest/skills/$name/SKILL.md"
+    done
     if [ -e "$cfg" ]; then
       printf 'note: %s exists — merge the "mcp" block manually:\n\n' "$cfg" >&2
       subst "$ROOT/hosts/opencode/opencode.json" >&2
@@ -39,14 +47,22 @@ case "$HOST" in
       subst "$ROOT/hosts/opencode/opencode.json" > "$cfg"
       printf 'wrote %s\n' "$cfg"
     fi
-    printf 'wrote %s/commands/latex-pdf.md\nwrote %s/skills/latex-pdf/SKILL.md\n' "$dest" "$dest"
+    for cmd in "$ROOT"/hosts/opencode/commands/*.md; do
+      printf 'wrote %s/commands/%s\n' "$dest" "$(basename "$cmd")"
+    done
+    for skill in "$ROOT"/hosts/opencode/skills/*/; do
+      printf 'wrote %s/skills/%s/SKILL.md\n' "$dest" "$(basename "$skill")"
+    done
     ;;
 
   hermes)
     dest="$HOME/.hermes"
-    mkdir -p "$dest/skills/latex-pdf"
-    subst "$ROOT/hosts/hermes/skills/latex-pdf/SKILL.md" > "$dest/skills/latex-pdf/SKILL.md"
-    printf 'wrote %s/skills/latex-pdf/SKILL.md\n' "$dest"
+    for skill in "$ROOT"/hosts/hermes/skills/*/; do
+      name=$(basename "$skill")
+      mkdir -p "$dest/skills/$name"
+      subst "$skill/SKILL.md" > "$dest/skills/$name/SKILL.md"
+      printf 'wrote %s/skills/%s/SKILL.md\n' "$dest" "$name"
+    done
 
     cfg="$dest/config.yaml"
     if [ ! -e "$cfg" ]; then

@@ -10,8 +10,15 @@ server.
   `${CLAUDE_PLUGIN_ROOT}`.
 - `.claude-plugin/marketplace.json` — this repo is its own single-plugin
   marketplace.
-- `skills/latex-pdf/SKILL.md` — model-invoked skill.
+- `skills/latex-pdf/SKILL.md` — model-invoked skill: render an existing Markdown
+  file.
+- `skills/reference-doc/SKILL.md` — model-invoked skill: read a codebase, *write*
+  a chaptered `reference.md`, render it with a `*-reference` preset. Authoring,
+  not just rendering — the read-the-project and verify-by-pixels phases are the
+  substance; the render call is three lines of it.
 - `commands/render-pdf.md` — user command `/mcp-latex:render-pdf <file> [title]`.
+- `commands/reference-doc.md` — user command
+  `/mcp-latex:reference-doc [scope] [preset]`.
 - `mcp/` — MCP server (TypeScript). Tool: `render_markdown_to_pdf`.
 - `mcp/assets/` — the LaTeX header, split into three composable pieces (see
   **Presets** below). Placeholders `__TITLE__`, `__HEADER_RIGHT__` and
@@ -44,8 +51,9 @@ substituted with the repo path by `hosts/install.sh`.
 ```
 
 - **opencode** — `opencode.json` `mcp.latex` (`type: local`, `command` array);
-  command → `commands/latex-pdf.md`, skill → `skills/latex-pdf/SKILL.md`.
-  Plural dir names are current; singular is legacy-compatible.
+  commands → `hosts/opencode/commands/*.md`, skills →
+  `hosts/opencode/skills/*/SKILL.md`. Plural dir names are current; singular is
+  legacy-compatible.
 
   opencode's command namespace is flat (the filename *is* the command), so the
   ports are prefixed `latex-` to group future siblings. Claude Code namespaces
@@ -59,8 +67,14 @@ The installer never rewrites an existing config in place: if `opencode.json`
 exists, or `config.yaml` already has `mcp_servers`, it prints the block to
 stderr for manual merging instead. Re-running is safe.
 
-Keep the three SKILL.md copies in sync when editing `skills/latex-pdf/SKILL.md`
-— the ports differ only in frontmatter and two host-neutral wording fixes.
+`install.sh` **globs** the port directories rather than naming files, so adding a
+skill or command means dropping it into `hosts/<host>/…` — no installer edit.
+
+Keep the three copies of each SKILL.md in sync when editing `skills/*/SKILL.md`
+— the ports differ only in frontmatter (hermes adds `version`, `platforms` and
+`metadata.hermes`) and in a few host-neutral wording fixes: `latex-pdf` has two,
+and `reference-doc` drops the `AskUserQuestion` tool name, which is Claude Code's
+— the other hosts still ask, just not by that name.
 
 ## Build / test
 
