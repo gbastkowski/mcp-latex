@@ -15,7 +15,8 @@ server.
 - `skills/reference-doc/SKILL.md` — model-invoked skill: read a codebase, *write*
   a chaptered `reference.md`, render it with a `*-reference` preset. Authoring,
   not just rendering — the read-the-project and verify-by-pixels phases are the
-  substance; the render call is three lines of it.
+  substance; the render call is three lines of it. Long manuals are written one
+  agent per chapter (see **Chapter fan-out** below).
 - `commands/render-pdf.md` — user command `/mcp-latex:render-pdf <file> [title]`.
 - `commands/reference-doc.md` — user command
   `/mcp-latex:reference-doc [scope] [preset]`.
@@ -60,8 +61,10 @@ substituted with the repo path by `hosts/install.sh`.
   plugin commands itself, so `commands/render-pdf.md` keeps its name rather
   than becoming `/mcp-latex:latex-pdf`.
 - **hermes** — `~/.hermes/config.yaml` under `mcp_servers.latex`; skills live in
-  `~/.hermes/skills/` (agentskills.io standard, so SKILL.md ports as-is plus a
-  `version:` field). `hermes mcp add` is the interactive equivalent.
+  `~/.hermes/skills/*/SKILL.md` (agentskills.io standard, so SKILL.md ports as-is
+  plus a `version:` field). `hermes mcp add` is the interactive equivalent.
+  Hermes has no command concept, so only the skills port — there is no
+  `hosts/hermes/commands/`.
 
 The installer never rewrites an existing config in place: if `opencode.json`
 exists, or `config.yaml` already has `mcp_servers`, it prints the block to
@@ -75,6 +78,34 @@ Keep the three copies of each SKILL.md in sync when editing `skills/*/SKILL.md`
 `metadata.hermes`) and in a few host-neutral wording fixes: `latex-pdf` has two,
 and `reference-doc` drops the `AskUserQuestion` tool name, which is Claude Code's
 — the other hosts still ask, just not by that name.
+
+## Chapter fan-out (`reference-doc`)
+
+A reference manual for a real codebase runs past a hundred pages, and one
+context writing all of it decays — later chapters drift from the vocabulary the
+earlier ones established. Above roughly six chapters or twenty pages the skill
+writes **one agent per chapter**; below that, inline, because the coordination
+costs more than it returns.
+
+The parts that are not obvious from reading the skill:
+
+- **`Concepts` is written first and single-threaded.** It is the shared
+  vocabulary. Parallelising it means two agents coin two names for the same
+  abstraction and every later chapter inherits the split.
+- **Chapter agents cannot talk to each other**, and cannot come back mid-run to
+  ask. So each returns a manifest alongside its file — headings it wrote, terms
+  it coined, cross-references it *wants* by topic — and the orchestrator
+  resolves those centrally, then respawns only the chapters that changed. Two
+  rounds converge because the agreed outline already fixed the boundaries.
+- **Chapters are files**, `docs/chapters/NN-slug.md`, reviewable and
+  re-generable one at a time. They are the source.
+- **Concatenation happens before the render.** Pandoc has no include mechanism
+  — it accepts multiple input files and joins them itself, but
+  `render_markdown_to_pdf` takes a single `input_path`. So `reference.md` is a
+  build product; edits belong in the chapter files.
+- **A whole-document pass is required afterwards.** Cross-references that
+  resolve to nothing are the characteristic failure of parallel authoring, and
+  the TOC is where a chapter missing from the concatenation shows up.
 
 ## Build / test
 
