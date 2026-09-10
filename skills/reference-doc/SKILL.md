@@ -22,10 +22,15 @@ codebase — the same repo yields three different manuals depending on who opens
 it, and guessing wrong wastes the whole read phase. Ask even when the request
 sounds complete; "document this project" names a target, not a reader.
 
+The reader is a technical professional; this is not a user manual. Do not ask
+whether to explain programming, and do not budget pages for it. What varies is
+**focus** — which part of the system they came for — and **seniority** — how
+much of this particular stack they already carry.
+
 Put the questions to the user in one round (`AskUserQuestion`), then proceed
 without further interruption:
 
-1. **Who reads this?** — the single highest-leverage answer.
+1. **Who reads this?** — the focus axis, and the single highest-leverage answer.
    - *API consumer / integrator* — someone calling it from outside. Endpoints,
      tool schemas, request and response shapes, error codes, auth, limits,
      worked examples. Internal structure is noise to them.
@@ -39,18 +44,38 @@ without further interruption:
 2. **What is in scope?** — whole repo, one module or service, the public surface
    only. A repo-wide manual for a large codebase is a different job from
    documenting one component.
-3. **Assumed background** — can the document take the domain vocabulary and the
-   toolchain for granted, or does it define its terms? This decides whether a
-   Concepts chapter is a page or a third of the document.
+3. **How senior is this reader in this stack?** — not general experience, but
+   fluency in the specific technologies and conventions this project is built
+   on. Name them in the question rather than asking abstractly, so the answer
+   is about this project and not about programming: the language and framework,
+   the protocol or build tool, the house patterns.
+   - *New to the stack* — competent engineer, first contact with these
+     technologies. Explain the project's use of them: which framework concepts
+     the code leans on, what the build produces, which conventions are load
+     bearing. Not the technologies themselves — link their own documentation.
+   - *Familiar* — uses them, has not internalised this project's idioms. Name
+     the non-obvious choices and move on.
+   - *Fluent* — writes this stack daily. Assume all of it; the document is
+     about what is specific to this codebase and nothing else.
 
 Ask further questions only when the answers leave something genuinely
 undecidable — a depth or version question worth a fourth option. Do **not** ask
 about styling, fonts or layout: the preset decides those.
 
-Then state the audience and scope back in one line before starting the read, so
-a wrong assumption is caught before the expensive part, and record it in the
-`Overview` chapter — a reference manual that says who it is for lets the wrong
-reader leave early.
+**The seniority answer mostly tells you what to leave out**, and that half is
+the one that gets ignored. Padding a manual with what the reader already knows
+trains them to skim, and then they skim past the part that mattered. So: never
+explain a language feature, a framework primitive or a standard tool. Explain
+this project's use of them, and only as far down as the answer warrants — a
+sentence for a fluent reader, a subsection for one new to the stack. Project
+specific vocabulary — invented abstractions, domain nouns, words with a local
+meaning — is defined at every level, because no amount of seniority elsewhere
+supplies it.
+
+Then state the audience, scope and seniority back in one line before starting
+the read, so a wrong assumption is caught before the expensive part, and record
+it in the `Overview` chapter — a reference manual that says who it is for lets
+the wrong reader leave early.
 
 ## Read the project
 
@@ -81,6 +106,11 @@ In rough order of value:
    these up constantly, so they earn a table.
 6. Errors — error types, exit codes, status codes.
 7. `git log` for what changed recently, when it explains a surprising shape.
+
+While reading, keep a list of the terms this project uses as if they were
+obvious — invented abstractions, domain nouns, overloaded words with a local
+meaning. Those are the `Concepts` entries. They are easier to spot now, on first
+contact, than after the codebase has made them feel obvious to you too.
 
 Delegate the sweep when the project is large: a read-only search agent per area
 (public API, config, errors, ops) returns the file:line facts without filling
@@ -120,6 +150,9 @@ passes still find something. Check for:
   appear in the TOC. A key buried in a paragraph is invisible.
 - **Audience fit** — walk the outline as the reader you asked about. Would they
   open each chapter? Cut what they never would.
+- **Nothing they already know** — the other direction, and the one that gets
+  skipped: a section teaching the framework, the language or a standard tool.
+  Cut it and reclaim the pages for what is specific to this codebase.
 
 **Show the revised outline to the user and get agreement before writing the
 body.** This is the second and last checkpoint: they see the shape, the chapter
@@ -127,10 +160,80 @@ list and the rough page weight, and a structural objection here is cheap.
 Present it as a short list, not as a file. If they change it, revise and
 continue — do not re-run the read.
 
-After the body is written, check the structure once more against what the prose
-actually became: sections often grow past their planned scope, and a heading
-that no longer describes its content is worse than no heading. Fix headings and
-promote or demote levels then, not during the render.
+## Write chapter by chapter
+
+A reference manual for a real codebase runs long — a hundred pages is ordinary.
+One context writing all of it start to finish degrades: the later chapters drift
+from the earlier vocabulary, and the whole thing is serial. Above roughly six
+chapters or twenty pages, **fan the writing out, one agent per chapter**. Below
+that, write it inline; the coordination costs more than it returns.
+
+Chapters live as separate files under `docs/chapters/`, named `NN-slug.md` in
+reading order — `01-overview.md`, `02-concepts.md`. Separate files are easier to
+review and to re-generate one at a time, and they keep a long document out of
+this context.
+
+### Pin the vocabulary first
+
+**Write `Concepts` before fanning out**, in one pass, and do not parallelise it.
+It is the shared vocabulary: if two chapter agents invent two names for the same
+abstraction, every later chapter inherits the split. Everything downstream reads
+it as fixed.
+
+### One agent per chapter
+
+Spawn the chapter agents concurrently — independent work, one message, several
+tool calls. Each one gets:
+
+- its chapter's headings from the agreed outline, and nothing about other
+  chapters' internals
+- the facts from the read that back those headings, as file:line specifics
+- the audience, scope and seniority answers
+- the finished `Concepts` terms, as fixed vocabulary it must use and must not
+  redefine
+- the writing rules below
+- the full chapter list — titles and file names only — so it knows what exists
+  to refer to
+
+Each returns its chapter file **and a short manifest**:
+
+- the headings it actually wrote, so other chapters can link to them
+- any term it introduced that is not already in `Concepts`
+- **cross-references it wants** — "something should explain retry backoff; I did
+  not write it" — named by topic, not by section number
+
+Subagents cannot talk to each other and cannot come back mid-run for an answer.
+Coordination goes through you, between rounds, which is why the manifest matters
+more than it looks.
+
+### Resolve the cross-references, then a second round
+
+Collect the manifests and resolve them yourself — this is bookkeeping, not a job
+for another agent:
+
+- a wanted reference that **matches a heading** another chapter declared becomes
+  a link by heading name
+- a wanted reference that **matches nothing** is a gap: assign it to the chapter
+  where it belongs, or accept it as an explicit gap
+- **two chapters explaining the same thing** — pick the one a reader reaches
+  first, and cut the other down to a cross-reference
+- **a term coined twice** — pick one, and push it back into `Concepts`
+
+Then respawn **only the chapters that changed**, with their resolution spelled
+out ("backoff is §4.2 *Retry policy* — link it, drop your own version"). Two
+rounds converge in practice, because the outline already fixed the boundaries.
+
+### Assemble
+
+Concatenate the chapter files in order into `reference.md` at the project root
+(or `docs/reference.md` where a `docs/` exists), front matter first. Pandoc has
+no include mechanism — it accepts multiple input files and joins them itself,
+but this plugin's server takes a single `input_path`, so the concatenation has
+to happen before the render.
+
+`reference.md` is a build product. The chapter files are the source that gets
+reviewed and re-generated; say so to the user, so nobody edits the concatenated
+file and loses it on the next run.
 
 ## Write the Markdown
 
@@ -151,10 +254,15 @@ The audience decides which of those chapters carry the document and which
 shrink to a page — a consumer manual leads with the surface and its errors and
 barely mentions internals; a maintainer manual leads with structure and
 rationale; an operator manual leads with `Operations` and `Reference`. Cut a
-chapter that reader would never open rather than padding it. The `Concepts`
-chapter is sized by the assumed-background answer.
+chapter that reader would never open rather than padding it.
 
-Front matter carries the title block:
+`Concepts` holds this project's own vocabulary, never a primer on the
+technologies it uses. Its length follows the seniority answer — a page for a
+fluent reader, a chapter where the stack's conventions need placing — but its
+subject does not change.
+
+Front matter carries the title block, and belongs at the top of the assembled
+`reference.md` — not in a chapter file:
 
 ```markdown
 ---
@@ -179,22 +287,45 @@ Writing rules that matter for this format specifically:
   reason a batch limit is 10000 is nowhere else. This is the highest-value
   content in the document, and it comes mostly from `AGENTS.md`, commit messages
   and the code's own comments.
-- **Cross-reference by heading name**, not page number — the numbers move.
+- **Assume the stack, define the project.** Use the language's and the
+  framework's terms bare. Define this codebase's own terms on first use. When a
+  passage explains something the reader already knows, delete it — do not demote
+  it to a footnote.
+- **Cross-reference by heading name**, not page number — the numbers move, and a
+  chapter written in isolation cannot know them. This is what makes
+  independently written chapters compose.
 - **No invention.** If the code does not say, the document does not say. Write
   down what is unverified as an explicit gap rather than guessing plausibly;
   a confident wrong default in a reference manual is worse than a missing one.
 - Keep an inline code span ASCII-only — an em-dash inside backticks breaks the
   render.
 
-Write to `reference.md` in the project (or `docs/reference.md` if a `docs/`
-directory exists), not into a scratch directory: this is a document the project
-keeps and re-renders.
+## Check the whole document
+
+Concatenation is not a document. Read the assembled `reference.md` end to end
+once, whatever wrote it — this pass is required after a fan-out and worth it
+after an inline write:
+
+- **Every cross-reference resolves** to a heading that exists, spelled the way
+  the target spells it. This is the failure mode of parallel authoring, and the
+  one a reader hits hardest.
+- **No duplicate explanations** — two chapters covering the same ground, each
+  written without seeing the other.
+- **Terminology is consistent** — one name per concept, matching `Concepts`.
+- **The seams read** — chapter openings that repeat the previous chapter's
+  setup, or assume a paragraph that ended up elsewhere.
+- **Headings still describe their content** — sections grow past their planned
+  scope, and a heading that no longer fits is worse than none. Fix headings and
+  promote or demote levels here, before the render.
+
+Fix these in the chapter files, then re-assemble. Editing the concatenated file
+loses the fix on the next run.
 
 ## Render
 
 Call `render_markdown_to_pdf` (this plugin's `latex` server):
 
-- `input_path`: the `.md` just written
+- `input_path`: the assembled `reference.md`
 - `preset`: `classic-reference` by default. `ista-reference` for ista-branded
   work, `eisvogel-reference` for a more modern look. `komabook` is the KOMA
   long-form alternative if the user prefers that typography.
@@ -227,7 +358,8 @@ Read those images and confirm:
   did not take.
 - The TOC lists chapters, sections and subsections, the page numbers are not all
   identical, and it matches the outline the user agreed to — the TOC is the first
-  place a dropped or renamed chapter shows up.
+  place a dropped or renamed chapter shows up. After a fan-out it is also where a
+  chapter file left out of the concatenation shows up.
 - Tables fit their columns — long `code_tokens` used to overrun.
 - Code blocks are highlighted, not flat black.
 
