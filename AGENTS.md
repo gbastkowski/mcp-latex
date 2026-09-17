@@ -20,7 +20,21 @@ server.
 - `commands/render-pdf.md` — user command `/mcp-latex:render-pdf <file> [title]`.
 - `commands/reference-doc.md` — user command
   `/mcp-latex:reference-doc [scope] [preset]`.
-- `mcp/` — MCP server (TypeScript). Tool: `render_markdown_to_pdf`.
+- `skills/apply-pdf-comments/SKILL.md` — model-invoked skill: read the
+  annotations a human left on a rendered PDF and revise the source from them.
+  The return leg of a render; the judgement is in anchoring on headings rather
+  than page numbers, and in diagnosing an empty result rather than reporting
+  "no comments".
+- `commands/apply-pdf-comments.md` — user command
+  `/mcp-latex:apply-pdf-comments <annotated.pdf> [source]`.
+- `mcp/` — MCP server (TypeScript). Tools: `render_markdown_to_pdf`,
+  `read_pdf_annotations`.
+- `mcp/src/annots.ts` — the annotation reader. Uses **mupdf** (WASM) rather
+  than a pure-JS PDF library, because it needs two things most do not expose:
+  an annotation's quadpoints and a box per *character*. Word boxes are
+  assembled from characters, since the structured-text dump carries line-level
+  boxes only and a mark covering one word would be scored against a whole
+  line.
 - `mcp/assets/` — the LaTeX header, split into three composable pieces (see
   **Presets** below). Placeholders `__TITLE__`, `__HEADER_RIGHT__` and
   `__LINK_COLOR__` are substituted at render time.
@@ -122,6 +136,11 @@ npm run typecheck   # tsc --noEmit
 
 Smoke-test the server over stdio by spawning `node dist/index.js` and sending an
 `initialize` + `tools/call` JSON-RPC pair (see git history for the harness).
+
+`node mcp/smoke-annots.mjs` is the one committed test: it renders a document,
+annotates the PDF, reads the annotations back through the server and checks
+what comes out. It drives `dist/`, so it also catches a missing
+`mupdf-wasm.wasm` — run it after any change to `annots.ts` or the bundle step.
 Convert a page to PNG for visual review: `pdftoppm -png -r 110 -f N -l N in.pdf out`.
 
 ## Engines
@@ -139,6 +158,15 @@ Convert a page to PNG for visual review: `pdftoppm -png -r 110 -f N -l N in.pdf 
 
 - Native prereqs: `sudo tlmgr install fancyhdr lastpage newunicodechar soul xcolor`.
   `soul` is needed for `~~strikethrough~~`.
+- **`mupdf-wasm.wasm` must sit beside `dist/index.js`.** esbuild cannot bundle
+  it: mupdf loads the WASM by path at runtime, relative to the module. So
+  `npm run bundle` copies it into `dist/`, and it is committed like the bundle
+  itself. Bundling without the copy produces a server that renders fine and
+  fails `read_pdf_annotations` with `ENOENT ... mupdf-wasm.wasm` — the failure
+  is at call time, not build time.
+- Markup annotations (highlight, underline) carry quadpoints and **throw** when
+  asked for their `Rect`; a sticky note is the reverse. `annotBoxes` tries both
+  and takes whichever answers.
 - Fonts without a glyph render as an empty box; arrows/emoji are mapped in
   `common.tex.tmpl` via `newunicodechar`.
 - Long unbreakable `\texttt{...}` tokens overran table columns, so `\texttt`

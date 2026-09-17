@@ -12,13 +12,15 @@
   ],
   "scripts": {
     "build": "tsc",
-    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node18 --outfile=dist/index.js",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node18 --outfile=dist/index.js && npm run copy-wasm",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "prepare": "npm run bundle"
+    "prepare": "npm run bundle",
+    "copy-wasm": "cp node_modules/mupdf/dist/mupdf-wasm.wasm dist/"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "mupdf": "^1.28.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

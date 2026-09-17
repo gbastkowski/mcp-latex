@@ -17,6 +17,7 @@ import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve, basename, extname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readAnnotations, formatAnnotations } from "./annots.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // assets live next to package root: mcp/assets/, dist/ is a sibling.
@@ -1020,6 +1021,52 @@ server.tool(
       };
     } finally {
       await rm(scratch, { recursive: true, force: true });
+    }
+  },
+);
+
+server.tool(
+  "read_pdf_annotations",
+  "Read the highlights and comments a human left on a PDF, so a document can " +
+    "be revised from them. Returns each annotation with the words it marks, " +
+    "the note attached to it, and the nearest heading — the heading is what " +
+    "survives a re-render, while page numbers do not. Reads the file only; a " +
+    "reader that keeps its annotations in its own database rather than in the " +
+    "PDF will yield none.",
+  {
+    pdf_path: z.string().describe("Path to the annotated PDF."),
+    format: z
+      .enum(["text", "json"])
+      .default("text")
+      .describe(
+        "'text' is the readable listing; 'json' returns the raw array for a " +
+          "caller that wants to process it.",
+      ),
+  },
+  async ({ pdf_path, format }) => {
+    const path = resolve(pdf_path);
+    try {
+      await access(path, constants.R_OK);
+    } catch {
+      return errText(`Cannot read ${path}`);
+    }
+    try {
+      const annots = await readAnnotations(path);
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              format === "json"
+                ? JSON.stringify(annots, null, 2)
+                : formatAnnotations(annots, path),
+          },
+        ],
+      };
+    } catch (e) {
+      return errText(
+        `Could not read annotations from ${path}: ${(e as Error).message}`,
+      );
     }
   },
 );

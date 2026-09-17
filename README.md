@@ -10,8 +10,12 @@ It bundles:
 - a **skill** (`skills/latex-pdf/`) that tells Claude when and how to render;
 - a second **skill** (`skills/reference-doc/`) that reads a codebase, writes a
   chaptered `reference.md` and renders it as a reference manual;
-- an **MCP server** (`mcp/`, TypeScript) exposing the tool
-  `render_markdown_to_pdf`, usable from any MCP client.
+- a third **skill** (`skills/apply-pdf-comments/`) for the return leg: read the
+  highlights and notes a human left on a rendered PDF and revise the source
+  from them;
+- an **MCP server** (`mcp/`, TypeScript) exposing the tools
+  `render_markdown_to_pdf` and `read_pdf_annotations`, usable from any MCP
+  client.
 
 ## Layout
 
@@ -19,8 +23,10 @@ It bundles:
 .claude-plugin/plugin.json    plugin manifest (declares the MCP server)
 skills/latex-pdf/SKILL.md      instructions, prerequisites, gotchas
 skills/reference-doc/SKILL.md  author + render a project reference manual
+skills/apply-pdf-comments/     read a reviewer's PDF annotations back in
 mcp/                           TypeScript MCP server
   src/index.ts                 render_markdown_to_pdf tool
+  src/annots.ts                read_pdf_annotations tool
   assets/common.tex.tmpl       glyph maps + table-wrap fix (shared)
   assets/layouts/              fonts, colour, page furniture
   assets/types/                document structure
@@ -107,6 +113,41 @@ also what feeds the masthead.
   defaults are dropped and xelatex falls back to Latin Modern (pass an explicit
   `main_font`/`mono_font` only if you know it exists in the image).
 - **auto** — native if available, else docker.
+
+## Reading annotations back
+
+`read_pdf_annotations` — the return leg of a render. Someone reads the PDF in a
+viewer, highlights a sentence and types a note; this reads those back out.
+
+| arg | default | notes |
+|-----|---------|-------|
+| `pdf_path` | — | the annotated PDF |
+| `format` | `text` | `text` for the readable listing, `json` for the raw array |
+
+Each annotation comes back with the words it marks, the note attached to it,
+and **the nearest heading** — taken from the PDF outline. The heading is the
+part worth anchoring on: page numbers are PDF pages rather than printed
+folios, and they change on the next render, while the heading still identifies
+the place after the source has been edited.
+
+Two details that decide whether the output is usable:
+
+- **Marked words are selected by coverage, not by clipping text to the mark's
+  rectangle.** A mark spanning several lines has a rectangle that cuts a
+  vertical slice through all of them, and clipping to it returns fragments of
+  each line rather than the words marked. A word counts as marked when the
+  mark covers at least half of its glyph box.
+- **The running header is excluded when locating a heading.** The chapter and
+  section titles are printed at the top of every page, so an unrestricted
+  search finds them there and files every comment under the page's first
+  heading.
+
+An empty result usually means the annotations never reached the file: some
+readers keep them in their own database and need an export, and a note's text
+can sync a moment later than its highlight. The `apply-pdf-comments` skill says
+how to tell those apart.
+
+It reads the PDF and writes nothing.
 
 ## How it works
 
