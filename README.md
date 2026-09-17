@@ -5,9 +5,11 @@ A Claude Code **plugin** that renders Markdown to a nicely-styled PDF
 header with an `N/M` page marker, subtle dark-blue links, A4 — via
 **pandoc + xelatex**.
 
-It bundles two things:
+It bundles:
 
 - a **skill** (`skills/latex-pdf/`) that tells Claude when and how to render;
+- a second **skill** (`skills/reference-doc/`) that reads a codebase, writes a
+  chaptered `reference.md` and renders it as a reference manual;
 - an **MCP server** (`mcp/`, TypeScript) exposing the tool
   `render_markdown_to_pdf`, usable from any MCP client.
 
@@ -16,9 +18,12 @@ It bundles two things:
 ```
 .claude-plugin/plugin.json    plugin manifest (declares the MCP server)
 skills/latex-pdf/SKILL.md      instructions, prerequisites, gotchas
+skills/reference-doc/SKILL.md  author + render a project reference manual
 mcp/                           TypeScript MCP server
   src/index.ts                 render_markdown_to_pdf tool
-  assets/header.tex.tmpl       tuned Palatino page furniture
+  assets/common.tex.tmpl       glyph maps + table-wrap fix (shared)
+  assets/layouts/              fonts, colour, page furniture
+  assets/types/                document structure
 ```
 
 ## The tool
@@ -27,16 +32,69 @@ mcp/                           TypeScript MCP server
 
 | arg | default | notes |
 |-----|---------|-------|
-| `markdown_path` / `markdown` | — | input file, or inline source |
+| `input_path` / `input` | — | input file, or inline source (aliases: `markdown_path` / `markdown`) |
+| `input_format` | `auto` | `auto`\|`markdown`\|`org`; auto infers from the extension |
+| `preset` | `classic-report` | `<layout>-<type>`; see **Presets** below |
 | `output_path` | `<input>.pdf` | |
 | `title` | "" | left running-header |
 | `header_right` | "" | right running-header, e.g. `PRD` |
 | `main_font` / `mono_font` | Palatino / Menlo | |
-| `papersize` / `fontsize` / `margin` | a4 / 11pt / 2.5cm | |
+| `papersize` / `fontsize` / `margin` | a4 / 11pt / 2.5cm | some types override `margin` — a newspaper runs to 1cm |
 | `link_color` | `1F4E79` | hex, no `#` |
-| `toc` / `number_sections` | auto / auto | `auto`\|`true`\|`false`; auto = on only with ≥3 headings |
+| `toc` | `auto` | `auto`\|`true`\|`false`; auto = on only when the TOC would have something to navigate |
+| `number_sections` | `auto` | `auto`\|`true`\|`false`; auto = on above 3 headings |
+| `logo_path` | "" | image: flanks the newspaper nameplate, or sits above the title on page one for other types |
+| `doc_date` | "" | creation date, shown once under the title on page one; empty = the input file's mtime, `none` = omit |
+| `doc_version` | "" | version shown beside the date, e.g. `v2.1` or a git SHA |
+| `shift_headings` | `auto` | `auto`\|`true`\|`false`; auto promotes when a lone H1 is the title |
 | `engine` | `auto` | `auto` \| `native` \| `docker` |
 | `open_in` | `none` | `Skim` \| `Preview` \| `none` |
+
+### Presets
+
+Styling is a `preset` named `<layout>-<type>`. **Layout** owns fonts, colour and
+page furniture; **type** owns structure. Any layout composes with any type, and
+an invalid name returns the list of valid ones.
+
+#### Which type?
+
+| type | use it for | what sets it apart |
+|---|---|---|
+| `report` | **the default.** One-off documents up to ~30 pages: specs, PRDs, notes, analyses | flat sections, TOC only when there is something to navigate |
+| `reference` | long-form documentation, tens to hundreds of pages | chapters, chapter-scoped numbering (`3.1`, not one long run), three-level TOC always on |
+| `koma` | like `report`, for typographically fussy or German-language work | KOMA-Script: type area computed from paper and font size, so a wider and more even measure than a fixed margin gives |
+| `komabook` | like `reference`, same reasoning | KOMA-Script with chapters |
+| `newspaper` | documents actually meant to look like a newspaper | landscape, three columns, Didot masthead, small-caps headlines, no TOC |
+
+Reach for `report` unless another type clearly fits. `reference` earns its
+chapters somewhere past twenty pages; below that the extra structure is noise.
+`newspaper` is the wrong shape for anything with code blocks or wide tables — a
+third of a landscape page cannot hold them.
+
+#### Which layout?
+
+| layout | use it for | what sets it apart |
+|---|---|---|
+| `classic` | anything with no house style to follow | Palatino body, black Helvetica Neue headings, no header rule |
+| `ista` | ista work | navy Optima headings, navy links, mint table rules, code tokens in the brand palette |
+| `eisvogel` | matching Eisvogel output produced elsewhere | approximates the well-known pandoc template: slate accent, thin header rule, centred folio |
+
+The two axes are independent, so `ista-reference` is ista branding on a long
+document and `eisvogel-report` is the Eisvogel look on a short one.
+
+A type may also set the document class, class options, body font and page margin
+— a newspaper is not set in a book face, and `article` has no `\chapter` for a
+reference to use. Some types override the `auto` defaults too: a newspaper never
+gets a TOC or numbered sections whatever the heading count, and a reference always
+does. An explicit `true`/`false` still wins.
+
+### Heading promotion
+
+With `shift_headings: auto` (the default), a document with exactly one top-level
+heading and something beneath it has every heading promoted one level: that H1
+becomes the PDF's title rather than a numbered section competing with its own
+children, and the H2s become top-level sections. For the `newspaper` type this is
+also what feeds the masthead.
 
 ### Engines
 
@@ -64,8 +122,10 @@ A render request runs through seven steps:
    source is written to a temp file first.
 2. **Pick engine** — `auto` uses native when `pandoc` and `xelatex` are on
    PATH, else docker; `native`/`docker` force one.
-3. **Build `header.tex`** — the template `mcp/assets/header.tex.tmpl` with three
-   placeholders substituted: `__TITLE__`, `__HEADER_RIGHT__`, `__LINK_COLOR__`.
+3. **Compose `header.tex`** — from the `preset`: `common.tex.tmpl`, then
+   `types/<type>.tex.tmpl`, then `layouts/<layout>.tex.tmpl`, concatenated in
+   that order so the layout can override the furniture its type set up. Three
+   placeholders are substituted: `__TITLE__`, `__HEADER_RIGHT__`, `__LINK_COLOR__`.
 4. **Build pandoc args** — `--pdf-engine=xelatex`, the include-header, TOC
    (`--toc --toc-depth=N`), numbered sections, and `-V` variables for fonts,
    paper size, margins and link colours.
@@ -80,9 +140,12 @@ Notable design points:
 
 - **One engine abstraction** — a single `buildPandocArgs()` feeds both engines;
   only the paths differ (host absolute paths vs `/data/...` in the container).
-- **`header.tex.tmpl` is the styling brain** — fancyhdr furniture, a
-  `newunicodechar` glyph map (arrows, emoji), and a breakable `\texttt` so long
-  identifiers wrap in table cells. The server only substitutes placeholders.
+- **The assets are the styling brain** — `common.tex.tmpl` holds what every
+  preset needs (a `newunicodechar` glyph map for arrows and emoji, a breakable
+  `\texttt` so long identifiers wrap in table cells, and ligature suppression in
+  monospace so `--` in code stays two hyphens). `layouts/*` own fonts, colour and
+  page furniture; `types/*` own structure. The server only concatenates them and
+  substitutes placeholders — adding a layout or type needs no code change.
 - **Scratch dir** — `mkdtemp` per call, removed in a `finally`; docker needs the
   input and header co-located under one mount, so they are staged there.
 - **Packaging** — the server is esbuild-bundled to a single `dist/index.js`
@@ -99,7 +162,7 @@ exposes it as a `bin`:
 "latex": { "type": "local", "command": ["npx", "-y", "github:gbastkowski/mcp-latex"] }
 ```
 
-`hosts/install.sh` writes that config plus a ported skill/command:
+`hosts/install.sh` writes that config plus the ported skills and commands:
 
 ```sh
 ./hosts/install.sh opencode                         # ./.opencode/ + ./opencode.json
@@ -108,11 +171,11 @@ exposes it as a `bin`:
 ./hosts/install.sh hermes --profile gunnar          # ~/.hermes/profiles/gunnar/
 ```
 
-| host | MCP config | skill | command |
-|------|-----------|-------|---------|
-| Claude Code | `.claude-plugin/plugin.json` | `skills/latex-pdf/` | `/mcp-latex:render-pdf` |
-| opencode | `opencode.json` → `mcp.latex` | `.opencode/skills/latex-pdf/` | `/render-pdf` |
-| hermes | `$HERMES_HOME/config.yaml` → `mcp_servers.latex` | `$HERMES_HOME/skills/latex-pdf/` | `/latex-pdf` (skill) |
+| host | MCP config | skills | commands |
+|------|-----------|--------|----------|
+| Claude Code | `.claude-plugin/plugin.json` | `skills/latex-pdf/`, `skills/reference-doc/` | `/mcp-latex:render-pdf`, `/mcp-latex:reference-doc` |
+| opencode | `opencode.json` → `mcp.latex` | `.opencode/skills/latex-pdf/`, `.opencode/skills/reference-doc/` | `/latex-pdf`, `/latex-reference-doc` |
+| hermes | `$HERMES_HOME/config.yaml` → `mcp_servers.latex` | `$HERMES_HOME/skills/latex-pdf/`, `$HERMES_HOME/skills/reference-doc/` | (skills only) |
 
 If the target config already exists, the installer prints the block to merge
 rather than overwriting it. For Hermes, `$HERMES_HOME` is profile-aware: it is

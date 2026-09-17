@@ -1,0 +1,37 @@
+% Newspaper nameplate logo: a brain at the hub of a compass rose.
+% Drawn entirely in positive coordinates — a TikZ picture is placed with its
+% origin at the current point, so anything centred on (0,0) hangs off the page.
+%   xelatex fig-logo.tex
+\documentclass{article}
+\usepackage[papersize={4.4cm,4.4cm},margin=0pt]{geometry}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\pagestyle{empty}
+\begin{document}\noindent
+\begin{tikzpicture}[line width=0.4pt]
+  \def\cx{2.2}\def\cy{2.2}
+  % compass rose: four cardinal points solid, four intercardinal muted
+  \foreach \a in {0,90,180,270}{
+    \fill[black] ($ (\cx,\cy) + (\a:1.75) $) -- ($ (\cx,\cy) + ({\a+11}:0.74) $)
+              -- ($ (\cx,\cy) + ({\a-11}:0.74) $) -- cycle;}
+  \foreach \a in {45,135,225,315}{
+    \fill[gray!55] ($ (\cx,\cy) + (\a:1.12) $) -- ($ (\cx,\cy) + ({\a+9}:0.66) $)
+                -- ($ (\cx,\cy) + ({\a-9}:0.66) $) -- cycle;}
+  \draw ($ (\cx,\cy) $) circle (1.92);
+  \draw ($ (\cx,\cy) $) circle (1.82);
+  % brain hub: two lobes, a central fissure and four sulci
+  \fill[white] ($ (\cx,\cy) $) circle (0.78);
+  \draw ($ (\cx,\cy) $) circle (0.78);
+  \draw ($ (\cx,\cy) + (0,0.78) $) -- ($ (\cx,\cy) + (0,-0.78) $);
+  % rose points start outside the hub so the brain stays legible
+
+  \draw[line width=0.55pt] ($ (\cx,\cy) + (-0.52,0.38) $) .. controls ($ (\cx,\cy) + (-0.20,0.23) $)
+    and ($ (\cx,\cy) + (-0.20,-0.02) $) .. ($ (\cx,\cy) + (-0.55,-0.16) $);
+  \draw[line width=0.55pt] ($ (\cx,\cy) + (-0.44,-0.42) $) .. controls ($ (\cx,\cy) + (-0.16,-0.37) $)
+    and ($ (\cx,\cy) + (-0.12,-0.54) $) .. ($ (\cx,\cy) + (-0.37,-0.64) $);
+  \draw[line width=0.55pt] ($ (\cx,\cy) + (0.52,0.38) $) .. controls ($ (\cx,\cy) + (0.20,0.23) $)
+    and ($ (\cx,\cy) + (0.20,-0.02) $) .. ($ (\cx,\cy) + (0.55,-0.16) $);
+  \draw[line width=0.55pt] ($ (\cx,\cy) + (0.44,-0.42) $) .. controls ($ (\cx,\cy) + (0.16,-0.37) $)
+    and ($ (\cx,\cy) + (0.12,-0.54) $) .. ($ (\cx,\cy) + (0.37,-0.64) $);
+\end{tikzpicture}
+\end{document}

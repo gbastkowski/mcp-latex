@@ -1,0 +1,51 @@
+% Layout: classic — the original mcp-latex look. Palatino body, no header rule,
+% italic running heads, compact "N/M" page marker bottom-right.
+% Section headings keep the LaTeX defaults (black, bold, serif).
+\setlength{\parskip}{0.5em}
+
+% Newspaper headlines get a ruled box — a period section-marker device. The hook
+% only exists under the newspaper type, so declare-then-override: a bare
+% \renewcommand would be an "undefined control sequence" error under every other
+% type, which reads this same file.
+% \strut keeps the box height uniform whether or not the text has descenders.
+% \linewidth, not \textwidth: inside multicol \textwidth is still the full
+% page, so a \textwidth box overflows its column and runs across the others.
+% \linewidth tracks the current column measure.
+% \framebox with an explicit width, not \fbox: \fbox shrinks to its content, so
+% headlines of different lengths produced boxes of different widths. The width
+% subtracts twice the rule and twice the separation so the frame lands exactly on
+% the text block rather than overhanging it. \parbox lets a long headline wrap
+% inside the box instead of overflowing the line.
+\providecommand{\newspaperheadstyle}[1]{#1}
+% Align the text INSIDE the box with the body text, not the frame. \fbox insets
+% its content by \fboxrule+\fboxsep, so a box flush with \linewidth pushed the
+% headline that far right of every other line in the column. Grow the box by that
+% amount on each side and pull it back left by the same, with \hspace*: the frame
+% now sits a hair outside the measure and the headline starts exactly on it.
+\newlength{\newspaperboxpad}
+\renewcommand{\newspaperheadstyle}[1]{%
+  \setlength{\newspaperboxpad}{\dimexpr\fboxrule+\fboxsep\relax}%
+  \hspace*{-\newspaperboxpad}%
+  \framebox[\dimexpr\linewidth+2\newspaperboxpad\relax][l]{%
+    \parbox{\linewidth}{\strut\textsc{#1}\strut}}%
+}
+
+% Classic wants the faintest rule of the three under the running head — the
+% newspaper type's 0.2pt is already a hairline, and this takes it lower still so
+% the head reads as a caption rather than a banner.
+\renewcommand{\headrulewidth}{0.1pt}
+
+% This layout never set a sans family, so anything reaching for \sffamily — the
+% newspaper running head, and the KOMA heading dispositions — silently fell back
+% to Latin Modern Sans, which clashes with the serif body exactly the way it did
+% in the ista headings before this was fixed there. Use the same neutral grotesque
+% Eisvogel uses, so classic-koma and classic-komabook set their headings in the
+% same families as eisvogel-koma and eisvogel-komabook.
+\usepackage{fontspec}
+\IfFontExistsTF{Helvetica Neue}{\setsansfont{Helvetica Neue}}{}
+
+% KOMA types style headings through \setkomafont and skip the \@startsection
+% block, so give them the sans dispositions explicitly rather than KOMA's
+% serif-by-default.
+\providecommand{\komaheadcolor}{}
+\renewcommand{\komaheadcolor}{\sffamily}

@@ -10,19 +10,29 @@ server.
   `${CLAUDE_PLUGIN_ROOT}`.
 - `.claude-plugin/marketplace.json` — this repo is its own single-plugin
   marketplace.
-- `skills/latex-pdf/SKILL.md` — model-invoked skill.
+- `skills/latex-pdf/SKILL.md` — model-invoked skill: render an existing Markdown
+  file.
+- `skills/reference-doc/SKILL.md` — model-invoked skill: read a codebase, *write*
+  a chaptered `reference.md`, render it with a `*-reference` preset. Authoring,
+  not just rendering — the read-the-project and verify-by-pixels phases are the
+  substance; the render call is three lines of it. Long manuals are written one
+  agent per chapter (see **Chapter fan-out** below).
 - `commands/render-pdf.md` — user command `/mcp-latex:render-pdf <file> [title]`.
+- `commands/reference-doc.md` — user command
+  `/mcp-latex:reference-doc [scope] [preset]`.
 - `mcp/` — MCP server (TypeScript). Tool: `render_markdown_to_pdf`.
-- `mcp/assets/header.tex.tmpl` — the tuned LaTeX header (page furniture, glyph
-  maps, table-wrap fix). Placeholders `__TITLE__`, `__HEADER_RIGHT__`,
+- `mcp/assets/` — the LaTeX header, split into three composable pieces (see
+  **Presets** below). Placeholders `__TITLE__`, `__HEADER_RIGHT__` and
   `__LINK_COLOR__` are substituted at render time.
 - `docker/Dockerfile` — custom TeX image `ghcr.io/gbastkowski/mcp-latex-tex`.
 - `hosts/` — ports for non-Claude MCP hosts (opencode, hermes) + `install.sh`.
+- `demos/` — one source document per type plus `render.py`, which renders every
+  preset through the server into the git-ignored `demos/out/`.
 
 ## Non-Claude hosts (`hosts/`)
 
 The MCP server itself is host-agnostic: plain stdio, no Claude APIs, and it
-resolves `assets/header.tex.tmpl` relative to `import.meta.url`, so any
+resolves `assets/` relative to `import.meta.url`, so any
 launcher works. Other hosts have no `${CLAUDE_PLUGIN_ROOT}`, so they launch it
 via `npx -y github:gbastkowski/mcp-latex` — no local checkout and no build,
 because `mcp/dist/index.js` is committed and the **root** `package.json`
@@ -36,27 +46,66 @@ Only the skill's manual-fallback path is localised — `__MCP_LATEX_ROOT__` is
 substituted with the repo path by `hosts/install.sh`.
 
 ```sh
-./hosts/install.sh opencode                         # ./.opencode + ./opencode.json in $PWD
-./hosts/install.sh opencode --global                # ~/.config/opencode
-./hosts/install.sh hermes                           # $HERMES_HOME or ~/.hermes
-./hosts/install.sh hermes --profile gunnar          # ~/.hermes/profiles/gunnar
+./hosts/install.sh opencode            # ./.opencode + ./opencode.json in $PWD
+./hosts/install.sh opencode --global   # ~/.config/opencode
+./hosts/install.sh hermes              # ~/.hermes  (then /reload-mcp)
 ```
 
 - **opencode** — `opencode.json` `mcp.latex` (`type: local`, `command` array);
-  command → `commands/render-pdf.md`, skill → `skills/latex-pdf/SKILL.md`.
-  Plural dir names are current; singular is legacy-compatible.
-- **hermes** — `$HERMES_HOME/config.yaml` under `mcp_servers.latex`; skills live in
-  `$HERMES_HOME/skills/` (agentskills.io standard, so SKILL.md ports as-is plus a
-  `version:` field). `$HERMES_HOME` is profile-aware: `~/.hermes` for the
-  default profile, `~/.hermes/profiles/<name>` for a named profile.
-  `hermes mcp add` is the interactive equivalent.
+  commands → `hosts/opencode/commands/*.md`, skills →
+  `hosts/opencode/skills/*/SKILL.md`. Plural dir names are current; singular is
+  legacy-compatible.
+
+  opencode's command namespace is flat (the filename *is* the command), so the
+  ports are prefixed `latex-` to group future siblings. Claude Code namespaces
+  plugin commands itself, so `commands/render-pdf.md` keeps its name rather
+  than becoming `/mcp-latex:latex-pdf`.
+- **hermes** — `~/.hermes/config.yaml` under `mcp_servers.latex`; skills live in
+  `~/.hermes/skills/*/SKILL.md` (agentskills.io standard, so SKILL.md ports as-is
+  plus a `version:` field). `hermes mcp add` is the interactive equivalent.
+  Hermes has no command concept, so only the skills port — there is no
+  `hosts/hermes/commands/`.
 
 The installer never rewrites an existing config in place: if `opencode.json`
 exists, or `config.yaml` already has `mcp_servers`, it prints the block to
 stderr for manual merging instead. Re-running is safe.
 
-Keep the three SKILL.md copies in sync when editing `skills/latex-pdf/SKILL.md`
-— the ports differ only in frontmatter and two host-neutral wording fixes.
+`install.sh` **globs** the port directories rather than naming files, so adding a
+skill or command means dropping it into `hosts/<host>/…` — no installer edit.
+
+Keep the three copies of each SKILL.md in sync when editing `skills/*/SKILL.md`
+— the ports differ only in frontmatter (hermes adds `version`, `platforms` and
+`metadata.hermes`) and in a few host-neutral wording fixes: `latex-pdf` has two,
+and `reference-doc` drops the `AskUserQuestion` tool name, which is Claude Code's
+— the other hosts still ask, just not by that name.
+
+## Chapter fan-out (`reference-doc`)
+
+A reference manual for a real codebase runs past a hundred pages, and one
+context writing all of it decays — later chapters drift from the vocabulary the
+earlier ones established. Above roughly six chapters or twenty pages the skill
+writes **one agent per chapter**; below that, inline, because the coordination
+costs more than it returns.
+
+The parts that are not obvious from reading the skill:
+
+- **`Concepts` is written first and single-threaded.** It is the shared
+  vocabulary. Parallelising it means two agents coin two names for the same
+  abstraction and every later chapter inherits the split.
+- **Chapter agents cannot talk to each other**, and cannot come back mid-run to
+  ask. So each returns a manifest alongside its file — headings it wrote, terms
+  it coined, cross-references it *wants* by topic — and the orchestrator
+  resolves those centrally, then respawns only the chapters that changed. Two
+  rounds converge because the agreed outline already fixed the boundaries.
+- **Chapters are files**, `docs/chapters/NN-slug.md`, reviewable and
+  re-generable one at a time. They are the source.
+- **Concatenation happens before the render.** Pandoc has no include mechanism
+  — it accepts multiple input files and joins them itself, but
+  `render_markdown_to_pdf` takes a single `input_path`. So `reference.md` is a
+  build product; edits belong in the chapter files.
+- **A whole-document pass is required afterwards.** Cross-references that
+  resolve to nothing are the characteristic failure of parallel authoring, and
+  the TOC is where a chapter missing from the concatenation shows up.
 
 ## Build / test
 
@@ -91,12 +140,114 @@ Convert a page to PNG for visual review: `pdftoppm -png -r 110 -f N -l N in.pdf 
 - Native prereqs: `sudo tlmgr install fancyhdr lastpage newunicodechar soul xcolor`.
   `soul` is needed for `~~strikethrough~~`.
 - Fonts without a glyph render as an empty box; arrows/emoji are mapped in
-  `header.tex.tmpl` via `newunicodechar`.
-- Long unbreakable `\texttt{...}` tokens overran table columns; `\texttt` is
-  redefined in the header to break after underscores.
+  `common.tex.tmpl` via `newunicodechar`.
+- Long unbreakable `\texttt{...}` tokens overran table columns, so `\texttt`
+  delegates to a **robust** `\wraptt` that breaks after underscores. It must be a
+  separate robust command, not a redefined `\texttt`: a heading containing code
+  lands in a moving argument (TOC entry, running head, PDF bookmark) where the
+  fragile `\def\_` fails with "Use of `\protect` doesn't match its definition"
+  (issue #4). Declaring `\texttt` itself robust instead recurses to "TeX capacity
+  exceeded", because it then expands via `\texttt␣` and the `\origtexttt` capture
+  points at the wrapper. Only `reference`/`komabook` triggered it, since they write
+  chapter marks as well as TOC entries.
 - TOC depth is `--toc-depth=2` by default (tool arg `toc_depth`).
-- `toc` and `number_sections` are tri-state (`auto`|`true`|`false`, default
-  `auto`): a doc with fewer than 3 headings renders plain (no TOC, no numbers).
+- `toc`, `number_sections` and `shift_headings` are tri-state
+  (`auto`|`true`|`false`, default `auto`).
+- The TOC heuristic counts **entries the TOC would actually show**, not total
+  headings: at least 4 entries at or above `toc_depth` and at least 3 top-level
+  sections. A total-heading threshold gave a TOC to one-page notes with a single
+  section and four subsections. It also accounts for `shift_headings`, since
+  promotion changes which source levels land in the TOC.
+- The KOMA classes define `\subtitle` themselves, so pandoc's `\providecommand`
+  for it is a no-op and the value lands in KOMA's variable, which only KOMA's
+  `\maketitle` reads — and `titling` has replaced that. The title block emits
+  `\@subtitle` explicitly, guarded by a `\providecommand` so the non-KOMA classes
+  skip it and pandoc's own handling still runs (issue #5).
+- skylighting has no Emacs Lisp grammar, so a fence tagged `elisp` came out
+  entirely unhighlighted with no warning. `LANG_ALIASES` maps `elisp`,
+  `emacs-lisp` and `emacslisp` to `commonlisp` in a staged COPY of the input, so
+  the author's file keeps saying what the code really is (issue #6). pandoc's cwd
+  stays the original directory, or relative image paths would break.
+- `sectsty` and `titlesec` are NOT in BasicTeX — layouts patch headings with
+  `\@startsection` instead.
+- Colouring a heading needs `\let\normalcolor\relax` in the style argument:
+  with `--number-sections` the section-number box restores `\normalcolor` and
+  resets the heading to black mid-line.
+- pandoc sets only `mainfont`/`monofont`, never `sansfont`. A layout using
+  `\sffamily` must set one itself or `\sffamily` silently falls back to Latin
+  Modern Sans, which clashes with Palatino. Guard with `\IfFontExistsTF`.
+- `\newfontfamily` on a missing font is a hard error — probe with
+  `\IfFontExistsTF` *before* declaring, not after.
+- Redefining `\maketitle` to use `\@title`/`\@date` must sit inside
+  `\makeatletter`…`\makeatother`, else xelatex dies with "You can't use
+  `\spacefactor` in vertical mode".
+- `multicol` is used by `newspaper` (three columns, landscape) and needs two
+  workarounds: pandoc emits tables as `longtable`, which hard-errors inside
+  `multicols` ("longtable not in 1-column mode"), so `longtable` is aliased to
+  `tabular`; and `\maketitle` opens the environment itself, after the masthead, or
+  the nameplate is trapped in column one. The closing `\end{multicols}` is guarded
+  by a switch, since a titleless document emits no `\maketitle`.
+  It was tried at A4 *portrait* first and reverted — two columns there left a
+  measure too narrow for prose or code. Landscape is what makes it viable.
+- Inside `multicols`, `\textwidth` is still the full page: box a heading with
+  `\linewidth` or it overflows its column.
+
+## Presets
+
+Styling is a `preset` string, `<layout>-<type>`, split on the FIRST dash and
+composed as `common.tex.tmpl` + `types/<type>` + `layouts/<layout>` — layout last
+so it can override the furniture the type set up. Adding a file to
+`assets/layouts/` or `assets/types/` is enough; there is no registry to update
+and no code change. An invalid preset returns the full list of valid combinations.
+
+Three per-type tables in `mcp/src/index.ts` carry what a LaTeX partial cannot set,
+because pandoc passes these before any header include is read:
+`TYPE_DEFAULTS` (the `auto` tri-states), `TYPE_CLASSES` (documentclass,
+classoption, tocDepth, topLevelDivision), `TYPE_FONTS` (body serif) and
+`TYPE_MARGINS` (page margin). The last two apply only when the caller left the
+corresponding argument at its default, so an explicit value is never overridden.
+
+A tight margin starves `fancyhdr` of headroom and the running head is clipped
+against the paper edge; `newspaper` passes `includehead` to `geometry` so the
+header gets its own strip inside the margin.
+
+`--top-level-division=chapter` matters for `reference`: without it pandoc's top
+level stays `\section`, no `\chapter` is ever issued, and every heading numbers
+from a zero chapter counter as `0.1`.
+
+A `newspaper` has to refuse the TOC in `TYPE_DEFAULTS`, because a partial cannot
+decline pandoc's `--toc` flag.
+
+KOMA types (`koma`, `komabook`) set `\headingsclaimed` so the layouts skip their
+`\@startsection` patch, and take their colour from a `\komaheadcolor` hook that
+each layout fills in — `\addtokomafont{disposition}` then covers every heading
+level at once, section numbers included. That one interface replaces the
+`\@startsection` + `\let\normalcolor\relax` workaround the standard-class types
+need. `fancyhdr` coexists with `scrartcl`/`scrreprt` (KOMA would prefer
+`scrlayer-scrpage`), so every layout partial works unchanged.
+
+Demos: `python3 demos/render.py` renders all 15 presets **through the server** over
+JSON-RPC — not by assembling pandoc calls, which would skip preset composition,
+type defaults and heading shift. See `demos/README.md`. It asserts the preset the
+server echoes back, because omitting the `preset` argument silently falls back to
+`classic-report` and still reports success.
+
+Every type prints a creation date and, when given, a version. `doc_date` defaults
+to the INPUT FILE's mtime rather than the wall clock, so re-rendering an unchanged
+document is reproducible. It appears ONCE, under the title on page one, via the `titling` block each
+document type sets up — not in the page footer, where it printed a generation date
+on every page and competed with the folio. The newspaper puts it in the dateline
+under the masthead instead, since that is where a paper carries its date.
+
+Two placeholders remain: `__DOC_STAMP__` (bare, the title block) and
+`__DOC_VERSION_SUFFIX__` (version only, for the newspaper — it prints the
+document's own date and showed it twice otherwise). A `__DOC_STAMP_SUFFIX__` form
+existed for footer use and went with the footers.
+
+`SERVER_VERSION` in `mcp/src/index.ts` must be kept in step with all three
+manifests: `package.json`, `mcp/package.json` and `.claude-plugin/plugin.json`. It is reported in the MCP handshake and appended to every
+render result — npx caches git installs, so that string is the only reliable way
+to confirm which build produced a PDF.
 
 ## Config wiring
 

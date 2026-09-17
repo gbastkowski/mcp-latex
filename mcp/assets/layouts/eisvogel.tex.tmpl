@@ -1,0 +1,106 @@
+% Layout: eisvogel — approximates the well-known pandoc "Eisvogel" template
+% (github.com/Wandmalfarbe/pandoc-latex-template) without vendoring it: a thin
+% rule under the header, small-caps running heads and a muted slate accent.
+% Not a byte-for-byte copy; the same visual register.
+\definecolor{eisvogelAccent}{HTML}{4E6E81}
+\definecolor{eisvogelRule}{HTML}{B0B7BF}
+\colorlet{Blue}{eisvogelAccent}
+
+% pandoc sets only mainfont/monofont, so \sffamily would fall back to Latin
+% Modern Sans and clash with the Palatino body. Eisvogel's register is a neutral
+% grotesque, so Helvetica Neue rather than a humanist face. Guarded: a missing
+% font degrades to the default instead of failing the render.
+\usepackage{fontspec}
+\IfFontExistsTF{Helvetica Neue}{\setsansfont{Helvetica Neue}}{}
+
+% Accent-coloured sans headings. Patched via \@startsection — sectsty and
+% titlesec are not in BasicTeX.
+%
+% \headcolor neutralises \normalcolor so the colour survives the section-number
+% box that --number-sections emits; a bare \color resets to black mid-heading.
+% Unlike ista, this layout styles headings unconditionally — it does NOT honour
+% \headingsclaimed. Eisvogel is meant to look like Eisvogel whatever the type, so
+% `eisvogel-newspaper` keeps the masthead and the newspaper page furniture but
+% takes its heading hierarchy (and its all-caps suppression, below) from here.
+\makeatletter
+\newcommand{\headcolor}{\let\normalcolor\relax\color{eisvogelAccent}}
+\renewcommand{\section}{\@startsection{section}{1}{0pt}%
+  {-3.5ex plus -1ex minus -.2ex}{2.3ex plus .2ex}%
+  {\normalfont\Large\sffamily\bfseries\headcolor}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{0pt}%
+  {-3.25ex plus -1ex minus -.2ex}{1.5ex plus .2ex}%
+  {\normalfont\large\sffamily\bfseries\headcolor}}
+% \chapter is NOT an \@startsection macro, so the patches above never reached it:
+% in the `reference` type its titles and TOC entries stayed serif black while the
+% sections beside them were sans accent — visibly two different schemes in one
+% contents list. Style the chapter head and its TOC entry to match.
+\@ifundefined{chapter}{}{%
+  \renewcommand{\@makechapterhead}[1]{%
+    \vspace*{1.5em}%
+    {\parindent\z@\raggedright\normalfont\sffamily
+      \interlinepenalty\@M
+      \Large\bfseries\headcolor \@chapapp\space\thechapter
+      \par\nobreak\vskip 0.4em
+      \huge\bfseries\headcolor #1\par\nobreak
+      \vskip 1.2em}}%
+  \renewcommand{\@makeschapterhead}[1]{%
+    \vspace*{1.5em}%
+    {\parindent\z@\raggedright\normalfont\sffamily
+      \interlinepenalty\@M
+      \huge\bfseries\headcolor #1\par\nobreak
+      \vskip 1.2em}}%
+  % TOC chapter lines: sans, to match the section lines beneath them.
+  \renewcommand{\l@chapter}[2]{%
+    \addpenalty{-\@highpenalty}%
+    \vskip 1.0em \@plus\p@
+    \setlength\@tempdima{1.5em}%
+    \begingroup
+      \parindent\z@ \rightskip\@pnumwidth
+      \parfillskip-\@pnumwidth
+      \leavevmode\sffamily\bfseries
+      \advance\leftskip\@tempdima \hskip-\leftskip
+      #1\nobreak\hfil\nobreak\hb@xt@\@pnumwidth{\hss #2}\par
+      \penalty\@highpenalty
+    \endgroup}%
+}
+\makeatother
+
+% No box and no all-caps: keep the plain Eisvogel headline. The newspaper type
+% routes its headline text through \newspaperheadstyle and uppercases it inside
+% \AtBeginDocument, so both have to be neutralised here — the box by resetting the
+% hook, the caps by restoring \section after that deferred patch has run.
+% Plain on purpose: no box AND no Kapitälchen, so eisvogel-newspaper reads as
+% Eisvogel with newspaper furniture rather than as a broadsheet.
+\providecommand{\newspaperheadstyle}[1]{#1}
+\renewcommand{\newspaperheadstyle}[1]{#1}
+\makeatletter
+\AtBeginDocument{%
+  \ifdefined\newspaper@sec\let\section\newspaper@sec\fi
+}
+\makeatother
+
+% KOMA types style headings through \setkomafont rather than \@startsection, so
+% they skip the block above entirely. Feed the same accent through the hook they
+% provide, so `koma-*` presets still look like Eisvogel.
+\providecommand{\komaheadcolor}{}
+\renewcommand{\komaheadcolor}{\color{eisvogelAccent}}
+
+% Thin rule under the running header — Eisvogel's most recognisable trait.
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{eisvogelRule}\leaders\hrule height \headrulewidth\hfill}}
+
+% The rule is drawn at the BOTTOM of the header box, so under the newspaper type's
+% tight \headsep it landed on the first line of body text. This layout is the only
+% one with a rule heavy enough to collide, so it buys back the clearance itself
+% rather than loosening the type for everyone.
+\ifdefined\isnewspapertype\addtolength{\headsep}{7pt}\fi
+
+% The running-head typeface goes through \newspaperheadfont where the newspaper
+% type provides it, so the folio this layout does not set survives. \fancyhead is
+% only set directly for the types that have no such hook.
+\providecommand{\newspaperheadfont}{}
+\renewcommand{\newspaperheadfont}{\small\sffamily}
+\ifdefined\headingsclaimed\else
+\fancyhead[L]{\small\sffamily __TITLE__}
+\fancyhead[R]{\small\sffamily __HEADER_RIGHT__}
+\fi
