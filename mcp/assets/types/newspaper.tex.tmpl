@@ -62,6 +62,10 @@
   \par\vspace{0.4em}%
 }
 
+% longtable must be loaded before \endhead can be redefined away (it defines
+% \endhead/\endfirsthead itself); pandoc emits longtable for every table, and we
+% alias it to a plain tabular so it renders inside a multicols column.
+\usepackage{longtable}
 \usepackage{array}
 \let\longtable\tabular
 \let\endlongtable\endtabular
@@ -92,7 +96,12 @@
 \makeatletter
 % Defined once here, not inside \maketitle: a \newcommand in there would fail if
 % \maketitle were ever called twice.
-\newcommand{\newspaper@logo}{__LOGO_PATH__}
+\def\newspaper@logo{__LOGO_PATH__}
+% Dateline content, substituted by the server. Defined as plain macros so the
+% \ifx guards below can test them for emptiness; \def (not \newcommand) keeps
+% them non-long, which is what \ifx\...\@empty expects.
+\def\newspaper@stamp{__DOC_STAMP__}
+\def\newspaper@version{__DOC_VERSION_SUFFIX__}
 \renewcommand{\maketitle}{%
   \begin{center}
     % Thick rule over thin — the classic masthead sandwich.
@@ -117,9 +126,13 @@
     %
     % The document's own date leads. When it has one, only the version follows;
     % printing the server's date as well showed the date twice.
-    {\footnotesize\scshape
-      \ifx\@date\@empty __DOC_STAMP__\else\@date __DOC_VERSION_SUFFIX__\fi
-      }\\[-0.2em]
+    \ifx\@date\@empty
+      \ifx\newspaper@stamp\@empty\else
+        {\footnotesize\scshape\newspaper@stamp}\\[-0.2em]
+      \fi
+    \else
+      {\footnotesize\scshape\@date\newspaper@version}\\[-0.2em]
+    \fi
     \rule{\textwidth}{0.4pt}
   \end{center}
   \vspace{0.8em}
