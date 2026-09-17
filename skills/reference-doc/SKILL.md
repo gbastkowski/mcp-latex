@@ -64,13 +64,23 @@ about styling, fonts or layout: the preset decides those.
 
 **The seniority answer mostly tells you what to leave out**, and that half is
 the one that gets ignored. Padding a manual with what the reader already knows
-trains them to skim, and then they skim past the part that mattered. So: never
-explain a language feature, a framework primitive or a standard tool. Explain
-this project's use of them, and only as far down as the answer warrants — a
-sentence for a fluent reader, a subsection for one new to the stack. Project
-specific vocabulary — invented abstractions, domain nouns, words with a local
-meaning — is defined at every level, because no amount of seniority elsewhere
-supplies it.
+trains them to skim, and then they skim past the part that mattered. So the
+asides that teach a reader this project's idioms are drawn from one of two
+sources, in order:
+
+- **A curated language pack, when the project's stack has one.** Consult it
+  first: it carries the idioms, conventions and pitfalls worth an aside in that
+  language, and it tells you which of them this project actually leans on. Use
+  what it selects and skip the rest.
+- **Otherwise, your own knowledge, scoped to this project.** Explain this
+  project's idioms directly — the conventions the code leans on, the non-obvious
+  choices, what the build produces. Never write a primer on the language or
+  framework itself; link the technology's own documentation instead.
+
+Go only as far down as the seniority answer warrants — a sentence for a fluent
+reader, a subsection for one new to the stack. Project specific vocabulary —
+invented abstractions, domain nouns, words with a local meaning — is defined at
+every level, because no amount of seniority elsewhere supplies it.
 
 Then state the audience, scope and seniority back in one line before starting
 the read, so a wrong assumption is caught before the expensive part, and record
@@ -99,13 +109,17 @@ In rough order of value:
 3. Manifests — `package.json`, `build.sbt`, `Cargo.toml`, `pyproject.toml`,
    `flake.nix`. They give the real module list, the dependencies and the
    commands.
-4. The public surface — exported symbols, HTTP routes, CLI subcommands, MCP
+4. Build, run and tooling — the commands that build, test and start the project
+   locally (`package.json` scripts, `Makefile`, `justfile`, CI workflows), the
+   entry-point files those commands lead to, and the language, tool and runtime
+   versions the manifests pin. These back the `Development / tooling` chapter.
+5. The public surface — exported symbols, HTTP routes, CLI subcommands, MCP
    tools, published schemas. Read the actual definitions, not the docs about
    them.
-5. Configuration — env vars, config files, defaults. Reference readers look
+6. Configuration — env vars, config files, defaults. Reference readers look
    these up constantly, so they earn a table.
-6. Errors — error types, exit codes, status codes.
-7. `git log` for what changed recently, when it explains a surprising shape.
+7. Errors — error types, exit codes, status codes.
+8. `git log` for what changed recently, when it explains a surprising shape.
 
 While reading, keep a list of the terms this project uses as if they were
 obvious — invented abstractions, domain nouns, overloaded words with a local
@@ -242,19 +256,24 @@ and `###` is the deepest level the TOC shows, so anything a reader needs to find
 must sit at `###` or above. A workable chapter spine, adapted to the project:
 
 ```
-# Overview          — what it is, what problem it solves, WHO THIS IS FOR
-# Concepts          — the domain vocabulary, defined once and used consistently
-# <Surface>         — the API / CLI / tool surface, one chapter per major surface
-# <Behaviour>       — the parts with rules worth stating: validation, lifecycle
-# Operations        — running it: metrics, alerts, runbook, capacity
-# Reference         — the lookup tables: config keys, error codes, glossary
+# Overview              — what it is, what problem it solves, WHO THIS IS FOR
+# Concepts              — the domain vocabulary, defined once and used consistently
+# <Surface>             — the API / CLI / tool surface, one chapter per major surface
+# <Behaviour>           — the parts with rules worth stating: validation, lifecycle
+# Development / tooling — build, run locally, entry points, tech stack
+# Operations            — running it: metrics, alerts, runbook, capacity
+# Reference             — the lookup tables: config keys, error codes, glossary
 ```
 
 The audience decides which of those chapters carry the document and which
 shrink to a page — a consumer manual leads with the surface and its errors and
 barely mentions internals; a maintainer manual leads with structure and
 rationale; an operator manual leads with `Operations` and `Reference`. Cut a
-chapter that reader would never open rather than padding it.
+chapter that reader would never open rather than padding it. The
+`Development / tooling` chapter stays one section, not a second onboarding
+manual: the build, test and run-local commands, the entry points they lead to,
+the stack and its versions. It says how to get this project running, never what
+the technologies are.
 
 `Concepts` holds this project's own vocabulary, never a primer on the
 technologies it uses. Its length follows the seniority answer — a page for a
