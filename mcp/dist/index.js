@@ -21431,66 +21431,68 @@ function buildPandocArgs(opts) {
 }
 var TLMGR_HINT = "Hint: BasicTeX is minimal \u2014 if a .sty is missing, run `sudo tlmgr install <pkg>` (fancyhdr lastpage newunicodechar soul xcolor).";
 var server = new McpServer({ name: "mcp-latex", version: SERVER_VERSION });
-server.tool(
+server.registerTool(
   "render_markdown_to_pdf",
-  "Render a Markdown or Org document to a nicely-styled PDF using pandoc + xelatex. Styling comes from a `preset` named '<layout>-<type>' (e.g. 'ista-report', 'eisvogel-newspaper'); call with an invalid preset to get the list of valid ones. Runs natively (macOS fonts, can open in Skim) or in a Docker image (portable/reproducible).",
   {
-    input_path: external_exports.string().optional().describe(
-      "Path to the input file (.md or .org). Provide this OR `input`. Alias: `markdown_path`."
-    ),
-    input: external_exports.string().optional().describe(
-      "Inline document source. Provide this OR `input_path`. Alias: `markdown`."
-    ),
-    input_format: external_exports.enum(["auto", "markdown", "org"]).default("auto").describe(
-      "Input syntax. 'auto' infers from the file extension (.org -> org, anything else -> markdown) and defaults to markdown for inline input."
-    ),
-    preset: external_exports.string().default(DEFAULT_PRESET).describe(
-      "Styling preset, '<layout>-<type>'. Layout controls fonts/colour/furniture, type controls structure. Any layout composes with any type; an invalid value returns the list of valid presets.\n\nTYPE \u2014 pick by document shape:\n  report     default. One-off documents up to ~30 pages: specs, PRDs, notes, analyses. Flat sections, TOC only when there is something to navigate. Choose this unless another type clearly fits.\n  reference  long-form documentation, tens to hundreds of pages. Adds chapters (a top-level heading becomes one), chapter-scoped numbering (3.1, not one long run), a three-level TOC always on. Use when the document is navigated rather than read start to finish.\n  koma       like `report`, but KOMA-Script: the type area is computed from paper and font size instead of a fixed margin, giving a wider, more even measure. Prefer for German-language or typographically fussy documents; otherwise `report` is the safer default.\n  komabook   like `reference`, but KOMA-Script. Same trade-off.\n  newspaper  a broadsheet pastiche: landscape, three columns, Didot masthead, small-caps headlines, no TOC. Only for documents actually meant to look like a newspaper \u2014 it is the wrong shape for anything with code blocks or wide tables, which a narrow column cannot hold.\n\nLAYOUT \u2014 pick by house style:\n  classic    the original look. Palatino body, black headings in Helvetica Neue, no header rule. Neutral; use when nothing else applies.\n  ista       ista brand. Navy Optima headings, navy links, mint table rules, code tokens in the brand palette. Use for ista work.\n  eisvogel   approximates the well-known pandoc Eisvogel template: slate accent, thin header rule, centred folio. Use when a document should match Eisvogel output from elsewhere."
-    ),
-    logo_path: external_exports.string().default("").describe(
-      "Path to an image. The newspaper flanks its nameplate with it; every other type places it above the document title on page one. Never discovered automatically \u2014 empty means none."
-    ),
-    doc_date: external_exports.string().default("").describe(
-      "Creation date shown in the page furniture. Empty means 'derive it from the input file's modification time', which keeps a re-render of an unchanged document byte-identical. Pass 'none' to omit it entirely."
-    ),
-    doc_version: external_exports.string().default("").describe(
-      "Document version shown alongside the date, e.g. 'v2.1' or a git SHA. Omitted when empty."
-    ),
-    shift_headings: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
-      "Promote every heading one level. 'auto' does so when the document has exactly one top-level heading and something beneath it \u2014 that H1 is the document title, so it becomes the PDF title and the H2s become top-level sections instead of being nested under it."
-    ),
-    markdown_path: external_exports.string().optional().describe("Deprecated alias for `input_path`."),
-    markdown: external_exports.string().optional().describe("Deprecated alias for `input`."),
-    output_path: external_exports.string().optional().describe(
-      "Output PDF path. Defaults to the input file with a .pdf extension, or ./document.pdf for inline input."
-    ),
-    title: external_exports.string().default("").describe("Left running-header text (usually the document title)."),
-    header_right: external_exports.string().default("").describe("Right running-header text, e.g. 'PRD'. Empty to omit."),
-    main_font: external_exports.string().default(MAC_DEFAULT_MAIN).describe(
-      "Serif body font. The macOS default 'Palatino' is auto-swapped to 'TeX Gyre Pagella' on Linux, and dropped for Latin Modern under the docker engine."
-    ),
-    mono_font: external_exports.string().default(MAC_DEFAULT_MONO).describe(
-      "Monospace font. The macOS default 'Menlo' is auto-swapped to 'DejaVu Sans Mono' on Linux, and dropped for Latin Modern under the docker engine."
-    ),
-    papersize: external_exports.string().default("a4"),
-    fontsize: external_exports.string().default("11pt"),
-    margin: external_exports.string().default(DEFAULT_MARGIN).describe(
-      "Page margin, e.g. '2.5cm'. Some types override this default \u2014 a newspaper runs much closer to the edge of the sheet."
-    ),
-    link_color: external_exports.string().default("1F4E79").describe("Hex link color (no leading #)."),
-    toc: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
-      "Table of contents. 'auto' includes one only when the document has several headings; 'true'/'false' force it."
-    ),
-    toc_depth: external_exports.number().int().min(1).max(6).default(2).describe("Deepest heading level shown in the TOC."),
-    number_sections: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
-      "Number the sections. 'auto' numbers only when the document has several headings; 'true'/'false' force it."
-    ),
-    engine: external_exports.enum(["auto", "native", "docker"]).default("auto").describe(
-      "Render engine. 'auto' uses native pandoc+xelatex when present (keeps system fonts and open_in), else Docker. 'native' or 'docker' force one."
-    ),
-    open_in: external_exports.enum(["Skim", "Preview", "none"]).default("none").describe(
-      "Open the rendered PDF in this macOS app on success, or 'none'. Works with either engine since the PDF lands on the host."
-    )
+    description: "Render a Markdown or Org document to a nicely-styled PDF using pandoc + xelatex. Styling comes from a `preset` named '<layout>-<type>' (e.g. 'ista-report', 'eisvogel-newspaper'); call with an invalid preset to get the list of valid ones. Runs natively (macOS fonts, can open in Skim) or in a Docker image (portable/reproducible).",
+    inputSchema: external_exports.strictObject({
+      input_path: external_exports.string().optional().describe(
+        "Path to the input file (.md or .org). Provide this OR `input`. Alias: `markdown_path`."
+      ),
+      input: external_exports.string().optional().describe(
+        "Inline document source. Provide this OR `input_path`. Alias: `markdown`."
+      ),
+      input_format: external_exports.enum(["auto", "markdown", "org"]).default("auto").describe(
+        "Input syntax. 'auto' infers from the file extension (.org -> org, anything else -> markdown) and defaults to markdown for inline input."
+      ),
+      preset: external_exports.string().default(DEFAULT_PRESET).describe(
+        "Styling preset, '<layout>-<type>'. Layout controls fonts/colour/furniture, type controls structure. Any layout composes with any type; an invalid value returns the list of valid presets.\n\nTYPE \u2014 pick by document shape:\n  report     default. One-off documents up to ~30 pages: specs, PRDs, notes, analyses. Flat sections, TOC only when there is something to navigate. Choose this unless another type clearly fits.\n  reference  long-form documentation, tens to hundreds of pages. Adds chapters (a top-level heading becomes one), chapter-scoped numbering (3.1, not one long run), a three-level TOC always on. Use when the document is navigated rather than read start to finish.\n  koma       like `report`, but KOMA-Script: the type area is computed from paper and font size instead of a fixed margin, giving a wider, more even measure. Prefer for German-language or typographically fussy documents; otherwise `report` is the safer default.\n  komabook   like `reference`, but KOMA-Script. Same trade-off.\n  newspaper  a broadsheet pastiche: landscape, three columns, Didot masthead, small-caps headlines, no TOC. Only for documents actually meant to look like a newspaper \u2014 it is the wrong shape for anything with code blocks or wide tables, which a narrow column cannot hold.\n\nLAYOUT \u2014 pick by house style:\n  classic    the original look. Palatino body, black headings in Helvetica Neue, no header rule. Neutral; use when nothing else applies.\n  ista       ista brand. Navy Optima headings, navy links, mint table rules, code tokens in the brand palette. Use for ista work.\n  eisvogel   approximates the well-known pandoc Eisvogel template: slate accent, thin header rule, centred folio. Use when a document should match Eisvogel output from elsewhere."
+      ),
+      logo_path: external_exports.string().default("").describe(
+        "Path to an image. The newspaper flanks its nameplate with it; every other type places it above the document title on page one. Never discovered automatically \u2014 empty means none."
+      ),
+      doc_date: external_exports.string().default("").describe(
+        "Creation date shown in the page furniture. Empty means 'derive it from the input file's modification time', which keeps a re-render of an unchanged document byte-identical. Pass 'none' to omit it entirely."
+      ),
+      doc_version: external_exports.string().default("").describe(
+        "Document version shown alongside the date, e.g. 'v2.1' or a git SHA. Omitted when empty."
+      ),
+      shift_headings: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
+        "Promote every heading one level. 'auto' does so when the document has exactly one top-level heading and something beneath it \u2014 that H1 is the document title, so it becomes the PDF title and the H2s become top-level sections instead of being nested under it."
+      ),
+      markdown_path: external_exports.string().optional().describe("Deprecated alias for `input_path`."),
+      markdown: external_exports.string().optional().describe("Deprecated alias for `input`."),
+      output_path: external_exports.string().optional().describe(
+        "Output PDF path. Defaults to the input file with a .pdf extension, or ./document.pdf for inline input."
+      ),
+      title: external_exports.string().default("").describe("Left running-header text (usually the document title)."),
+      header_right: external_exports.string().default("").describe("Right running-header text, e.g. 'PRD'. Empty to omit."),
+      main_font: external_exports.string().default(MAC_DEFAULT_MAIN).describe(
+        "Serif body font. The macOS default 'Palatino' is auto-swapped to 'TeX Gyre Pagella' on Linux, and dropped for Latin Modern under the docker engine."
+      ),
+      mono_font: external_exports.string().default(MAC_DEFAULT_MONO).describe(
+        "Monospace font. The macOS default 'Menlo' is auto-swapped to 'DejaVu Sans Mono' on Linux, and dropped for Latin Modern under the docker engine."
+      ),
+      papersize: external_exports.string().default("a4"),
+      fontsize: external_exports.string().default("11pt"),
+      margin: external_exports.string().default(DEFAULT_MARGIN).describe(
+        "Page margin, e.g. '2.5cm'. Some types override this default \u2014 a newspaper runs much closer to the edge of the sheet."
+      ),
+      link_color: external_exports.string().default("1F4E79").describe("Hex link color (no leading #)."),
+      toc: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
+        "Table of contents. 'auto' includes one only when the document has several headings; 'true'/'false' force it."
+      ),
+      toc_depth: external_exports.number().int().min(1).max(6).default(2).describe("Deepest heading level shown in the TOC."),
+      number_sections: external_exports.enum(["auto", "true", "false"]).default("auto").describe(
+        "Number the sections. 'auto' numbers only when the document has several headings; 'true'/'false' force it."
+      ),
+      engine: external_exports.enum(["auto", "native", "docker"]).default("auto").describe(
+        "Render engine. 'auto' uses native pandoc+xelatex when present (keeps system fonts and open_in), else Docker. 'native' or 'docker' force one."
+      ),
+      open_in: external_exports.enum(["Skim", "Preview", "none"]).default("none").describe(
+        "Open the rendered PDF in this macOS app on success, or 'none'. Works with either engine since the PDF lands on the host."
+      )
+    })
   },
   async (args) => {
     const {
