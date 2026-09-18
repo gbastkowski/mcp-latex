@@ -132,15 +132,13 @@ the place after the source has been edited.
 
 Two details that decide whether the output is usable:
 
-- **Marked words are selected by coverage, not by clipping text to the mark's
-  rectangle.** A mark spanning several lines has a rectangle that cuts a
-  vertical slice through all of them, and clipping to it returns fragments of
-  each line rather than the words marked. A word counts as marked when the
-  mark covers at least half of its glyph box.
-- **The running header is excluded when locating a heading.** The chapter and
-  section titles are printed at the top of every page, so an unrestricted
-  search finds them there and files every comment under the page's first
-  heading.
+- **Marked words are selected by coverage**, not by clipping text to the
+  mark's rectangle — a mark spanning several lines has a rectangle that cuts a
+  vertical slice through all of them. A word counts as marked when the mark
+  covers at least half of its glyph box.
+- **The running head is excluded when locating a heading**, since the section
+  title is reprinted at the top of every page and an unrestricted search would
+  file every comment under it.
 
 An empty result usually means the annotations never reached the file: some
 readers keep them in their own database and need an export, and a note's text

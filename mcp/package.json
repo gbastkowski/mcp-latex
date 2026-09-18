@@ -16,7 +16,8 @@
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run bundle",
-    "copy-wasm": "cp node_modules/mupdf/dist/mupdf-wasm.wasm dist/"
+    "copy-wasm": "cp node_modules/mupdf/dist/mupdf-wasm.wasm dist/",
+    "test": "node --experimental-strip-types test-geometry.mjs && node smoke-annots.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

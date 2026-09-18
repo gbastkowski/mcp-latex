@@ -21110,7 +21110,7 @@ var StdioServerTransport = class {
 // src/index.ts
 import { spawn } from "node:child_process";
 import {
-  readFile,
+  readFile as readFile2,
   writeFile,
   mkdtemp,
   rm,
@@ -24577,6 +24577,7 @@ globalThis.$libmupdf_device = {
 };
 
 // src/annots.ts
+import { readFile } from "node:fs/promises";
 var TEXT_MARKUP = /* @__PURE__ */ new Set([
   "Highlight",
   "Underline",
@@ -24644,6 +24645,9 @@ function annotBoxes(an) {
     return [];
   }
 }
+function firstBodyY(boxes) {
+  return boxes.find((b) => b.y0 >= HEADER_Y)?.y0;
+}
 function headingIndex(doc) {
   const byPage = /* @__PURE__ */ new Map();
   const walk = (entries) => {
@@ -24654,8 +24658,8 @@ function headingIndex(doc) {
         let y = 0;
         try {
           const hits = doc.loadPage(pno).search(title.slice(0, 60), {});
-          const below = (hits ?? []).filter((quads) => quads.length > 0).map((quads) => quadBox(quads[0])).filter((b) => b.y0 >= HEADER_Y);
-          if (below.length) y = below[0].y0;
+          const boxes = (hits ?? []).filter((quads) => quads.length > 0).map((quads) => quadBox(quads[0]));
+          y = firstBodyY(boxes) ?? 0;
         } catch {
         }
         const list = byPage.get(pno) ?? [];
@@ -24669,9 +24673,19 @@ function headingIndex(doc) {
   for (const list of byPage.values()) list.sort((a, b) => a.y - b.y);
   return byPage;
 }
+function markedText(words, boxes) {
+  return words.filter((w) => {
+    const a = area(w);
+    if (!a) return false;
+    const covered = Math.max(...boxes.map((b) => area(overlap(w, b))), 0);
+    return covered / a >= COVERAGE;
+  }).map((w) => w.text).join(" ").replace(new RegExp("(\\p{L})-\\s+(\\p{L})", "gu"), "$1$2");
+}
+function headingAbove(onPage, top, carried) {
+  return onPage.filter((h) => h.y <= top + 2).at(-1)?.title ?? carried;
+}
 async function readAnnotations(pdfPath) {
-  const { readFile: readFile2 } = await import("node:fs/promises");
-  const buf = await readFile2(pdfPath);
+  const buf = await readFile(pdfPath);
   const doc = Document.openDocument(buf, "application/pdf");
   const headings = headingIndex(doc);
   let lastHeading = "";
@@ -24694,20 +24708,8 @@ async function readAnnotations(pdfPath) {
       }
       const boxes = annotBoxes(an);
       const top = boxes.length ? Math.min(...boxes.map((b) => b.y0)) : 0;
-      let quoted = "";
-      if (TEXT_MARKUP.has(type) && boxes.length) {
-        quoted = words.filter((w) => {
-          const a = area(w);
-          if (!a) return false;
-          const covered = Math.max(
-            ...boxes.map((b) => area(overlap(w, b))),
-            0
-          );
-          return covered / a >= COVERAGE;
-        }).map((w) => w.text).join(" ");
-      }
-      const above = onPage.filter((h) => h.y <= top + 2);
-      const heading = above.length ? above[above.length - 1].title : onPage.length ? lastHeading : lastHeading;
+      const quoted = TEXT_MARKUP.has(type) && boxes.length ? markedText(words, boxes) : "";
+      const heading = headingAbove(onPage, top, lastHeading);
       out.push({ page: pno + 1, type, quoted, note, heading });
     }
     if (onPage.length) lastHeading = onPage[onPage.length - 1].title;
@@ -25189,9 +25191,9 @@ server.registerTool(
         outFile = output_path ? resolve(output_path) : resolve("document.pdf");
       }
       const parts = await Promise.all([
-        readFile(COMMON_PATH, "utf8"),
-        readFile(join(TYPES_DIR, `${type}.tex.tmpl`), "utf8"),
-        readFile(join(LAYOUTS_DIR, `${layout}.tex.tmpl`), "utf8")
+        readFile2(COMMON_PATH, "utf8"),
+        readFile2(join(TYPES_DIR, `${type}.tex.tmpl`), "utf8"),
+        readFile2(join(LAYOUTS_DIR, `${layout}.tex.tmpl`), "utf8")
       ]);
       let stamp = "";
       if (doc_date !== "none") {
@@ -25212,7 +25214,7 @@ server.registerTool(
       const header = parts.join("\n").replace(/__TITLE__/g, texEscape(title)).replace(/__HEADER_RIGHT__/g, texEscape(header_right)).replace(/__DOC_VERSION_SUFFIX__/g, versionSuffix).replace(/__DOC_STAMP__/g, stampLine).replace(/__LOGO_PATH__/g, logo_path).replace(/__LINK_COLOR__/g, link_color.replace(/^#/, ""));
       const headerFile = join(scratch, "header.tex");
       await writeFile(headerFile, header, "utf8");
-      const source = srcInline ?? await readFile(inputFile, "utf8").catch(() => "");
+      const source = srcInline ?? await readFile2(inputFile, "utf8").catch(() => "");
       const inputDir = dirname(inputFile);
       const mapped = mapFenceLanguages(source, fmt);
       if (mapped !== source) {

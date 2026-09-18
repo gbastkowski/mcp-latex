@@ -137,10 +137,20 @@ npm run typecheck   # tsc --noEmit
 Smoke-test the server over stdio by spawning `node dist/index.js` and sending an
 `initialize` + `tools/call` JSON-RPC pair (see git history for the harness).
 
-`node mcp/smoke-annots.mjs` is the one committed test: it renders a document,
-annotates the PDF, reads the annotations back through the server and checks
-what comes out. It drives `dist/`, so it also catches a missing
-`mupdf-wasm.wasm` — run it after any change to `annots.ts` or the bundle step.
+`cd mcp && npm test` runs both committed suites:
+
+- `test-geometry.mjs` — unit tests over the pure geometry in `annots.ts`
+  (`markedText`, `headingAbove`, `firstBodyY`) with synthetic boxes. These
+  exist because the two defects the reader was written around are about
+  coordinates, and a real PDF's layout cannot be relied on to keep reproducing
+  them — a font change moves the geometry and the test quietly stops covering
+  the case. Both defects are mutation-checked: dropping the `HEADER_Y` filter
+  fails three assertions, and replacing per-word coverage with a bounding-box
+  clip fails one.
+- `smoke-annots.mjs` — end-to-end: render, annotate, read back over stdio. It
+  drives `dist/`, so it also catches a missing `mupdf-wasm.wasm`.
+
+Run both after any change to `annots.ts` or the bundle step.
 Convert a page to PNG for visual review: `pdftoppm -png -r 110 -f N -l N in.pdf out`.
 
 ## Engines

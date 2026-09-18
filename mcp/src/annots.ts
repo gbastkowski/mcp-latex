@@ -1,19 +1,15 @@
 // Read the annotations a human left on a rendered PDF, so a document can be
-// revised from comments made in a viewer.
+// revised from comments made in a viewer. A comment comes back with the words
+// it marks and the heading it sits under, because a page number does not
+// survive the next render.
 //
-// This is the return leg of the render: the tool writes a PDF, someone reads it
-// on a tablet and highlights a sentence, and the comment has to come back
-// attached to enough context to act on -- which means the words actually marked
-// and the heading they sit under, not a page number.
-//
-// mupdf is used rather than a pure-JS PDF library because two things are
-// needed that most do not expose: an annotation's quadpoints, and a box per
-// character. The cost is a WASM blob in the bundle.
+// mupdf rather than a pure-JS PDF library: it exposes an annotation's
+// quadpoints and a box per character, which most do not.
 import * as mupdf from "mupdf";
+import { readFile } from "node:fs/promises";
 
-// Annotation types that mark existing text, as opposed to adding something of
-// their own. Only these get quoted text; a sticky note carries only its own
-// contents, and a drawing carries neither.
+// Annotation types that mark existing text, and so have words to quote. A
+// sticky note carries only its own contents; a drawing carries neither.
 const TEXT_MARKUP = new Set([
   "Highlight",
   "Underline",
@@ -21,18 +17,13 @@ const TEXT_MARKUP = new Set([
   "Squiggly",
 ]);
 
-// A word must be this much covered by the mark to count as marked. Half is
-// deliberately generous: a reader dragging across a line clips the glyphs
-// above and below it, and those neighbours are covered only at their very
-// edge -- so anything near half is the intended line, and anything well under
-// it is spill. Measured against real tablet annotations, the losing words sat
-// at 0.11-0.17 and the winning one at 1.0, so the threshold is nowhere near
-// either.
+// How much of a word the mark must cover to count as marked. Uncritical:
+// against a real tablet annotation the clipped neighbours scored 0.11-0.17 and
+// the marked word 1.0.
 const COVERAGE = 0.5;
 
-// The running header repeats the chapter and section title at the top of every
-// page, so searching a page for a heading's text finds it there first. Anything
-// above this y is furniture, not content.
+// The running head reprints a section title on every page, so a search for a
+// heading matches furniture up here as well as the real thing.
 const HEADER_Y = 60;
 
 interface Box {
@@ -83,10 +74,9 @@ const overlap = (a: Box, b: Box): Box => ({
 /**
  * Words on a page, each with its own box.
  *
- * Assembled from characters rather than read from the structured-text JSON,
- * which carries boxes per *line* only. A line box is useless here: a mark
- * covering one word would be scored against the width of the whole line and
- * either claim all of it or none.
+ * Assembled from characters: the structured-text JSON carries boxes per *line*
+ * only, and a mark covering one word would then be scored against the whole
+ * line.
  */
 function pageWords(page: mupdf.Page): Word[] {
   const words: Word[] = [];
@@ -121,16 +111,16 @@ function pageWords(page: mupdf.Page): Word[] {
 /**
  * The boxes an annotation covers.
  *
- * Markup annotations carry quadpoints -- one quad per line of text covered --
- * and mupdf *throws* when asked for their Rect. A sticky note is the reverse.
- * So both are attempted and whichever answers is used.
+ * Markup annotations carry quadpoints, one per line covered, and mupdf
+ * *throws* when asked for their Rect; a sticky note is the reverse. Hence
+ * both, whichever answers.
  */
 function annotBoxes(an: mupdf.PDFAnnotation): Box[] {
   try {
     const qp = an.getQuadPoints?.();
     if (qp?.length) return Array.from(qp, quadBox);
   } catch {
-    // Not a markup annotation; fall through to the rectangle.
+    // Not a markup annotation.
   }
   try {
     const r = an.getRect();
@@ -149,13 +139,23 @@ interface Outline {
 }
 
 /**
- * Resolve each outline entry to a page and a y, so a comment can be filed
- * under the heading above it rather than under whichever heading the page
- * happens to start with.
+ * The y of the first hit that is body text rather than page furniture.
  *
- * A heading's y is found by searching its own page for its title text. That is
- * a text search rather than a structural lookup because the PDF outline stores
- * a destination, not a position we can trust across renderers.
+ * A heading's title is reprinted in the running head, and that occurrence sits
+ * near the top of the page — above any mark on it. Taking it would record the
+ * heading as starting above a mark it actually follows, which then claims
+ * comments that belong to the heading before it.
+ */
+export function firstBodyY(boxes: Box[]): number | undefined {
+  return boxes.find((b) => b.y0 >= HEADER_Y)?.y0;
+}
+
+/**
+ * Each outline entry with a page and a y, so a comment lands under the heading
+ * above it rather than the one the page opens with.
+ *
+ * The y comes from searching the page for the title text, because the outline
+ * stores a destination rather than a position to trust across renderers.
  */
 function headingIndex(doc: mupdf.PDFDocument): Map<number, { y: number; title: string }[]> {
   const byPage = new Map<number, { y: number; title: string }[]>();
@@ -166,17 +166,14 @@ function headingIndex(doc: mupdf.PDFDocument): Map<number, { y: number; title: s
       if (title && pno >= 0) {
         let y = 0;
         try {
-          // Long titles are truncated: mupdf's search wants a literal, and a
-          // title that wrapped across two lines in the body will not match in
-          // full.
-          // search returns one array of quads per hit -- a hit that wraps a
-          // line has several -- so the first quad of each is enough to place it.
+          // Truncated: search wants a literal, and a title that wrapped in
+          // the body will not match in full.
           const hits = doc.loadPage(pno).search(title.slice(0, 60), {});
-          const below = (hits ?? [])
+          // One array of quads per hit; the first places it.
+          const boxes = (hits ?? [])
             .filter((quads) => quads.length > 0)
-            .map((quads) => quadBox(quads[0]))
-            .filter((b) => b.y0 >= HEADER_Y);
-          if (below.length) y = below[0].y0;
+            .map((quads) => quadBox(quads[0]));
+          y = firstBodyY(boxes) ?? 0;
         } catch {
           // A title that cannot be located still orders correctly by page.
         }
@@ -192,9 +189,43 @@ function headingIndex(doc: mupdf.PDFDocument): Map<number, { y: number; title: s
   return byPage;
 }
 
+/**
+ * The words a mark covers, as one string.
+ *
+ * By coverage per word, not by clipping page text to the mark's rectangle: a
+ * mark spanning several lines has a rectangle that cuts a vertical slice
+ * through all of them, yielding a fragment of each line.
+ */
+export function markedText(words: Word[], boxes: Box[]): string {
+  return words
+    .filter((w) => {
+      const a = area(w);
+      if (!a) return false;
+      const covered = Math.max(...boxes.map((b) => area(overlap(w, b))), 0);
+      return covered / a >= COVERAGE;
+    })
+    .map((w) => w.text)
+    .join(" ")
+    // Rejoin a word the renderer hyphenated across a line break: the quote is
+    // used to find the passage in the *source*, where no such break exists,
+    // so "cover- age" would match nothing.
+    .replace(/(\p{L})-\s+(\p{L})/gu, "$1$2");
+}
+
+/**
+ * The heading a mark sits under: the lowest one starting at or above it, else
+ * the last heading seen on an earlier page.
+ */
+export function headingAbove(
+  onPage: { y: number; title: string }[],
+  top: number,
+  carried: string,
+): string {
+  return onPage.filter((h) => h.y <= top + 2).at(-1)?.title ?? carried;
+}
+
 /** Read every annotation in a PDF, with its quoted text and heading. */
 export async function readAnnotations(pdfPath: string): Promise<Annotation[]> {
-  const { readFile } = await import("node:fs/promises");
   const buf = await readFile(pdfPath);
   const doc = mupdf.Document.openDocument(buf, "application/pdf") as mupdf.PDFDocument;
   const headings = headingIndex(doc);
@@ -224,34 +255,13 @@ export async function readAnnotations(pdfPath: string): Promise<Annotation[]> {
       let note = "";
       try {
         note = (an.getContents() ?? "").trim();
-      } catch {
-        // An annotation with no contents entry is normal, not an error.
-      }
+      } catch {}
       const boxes = annotBoxes(an);
       const top = boxes.length ? Math.min(...boxes.map((b) => b.y0)) : 0;
 
-      let quoted = "";
-      if (TEXT_MARKUP.has(type) && boxes.length) {
-        quoted = words
-          .filter((w) => {
-            const a = area(w);
-            if (!a) return false;
-            const covered = Math.max(
-              ...boxes.map((b) => area(overlap(w, b))),
-              0,
-            );
-            return covered / a >= COVERAGE;
-          })
-          .map((w) => w.text)
-          .join(" ");
-      }
-
-      const above = onPage.filter((h) => h.y <= top + 2);
-      const heading = above.length
-        ? above[above.length - 1].title
-        : onPage.length
-          ? lastHeading
-          : lastHeading;
+      const quoted =
+        TEXT_MARKUP.has(type) && boxes.length ? markedText(words, boxes) : "";
+      const heading = headingAbove(onPage, top, lastHeading);
 
       out.push({ page: pno + 1, type, quoted, note, heading });
     }
