@@ -204,20 +204,23 @@ exposes it as a `bin`:
 `hosts/install.sh` writes that config plus the ported skills and commands:
 
 ```sh
-./hosts/install.sh opencode            # ./.opencode/ + ./opencode.json
-./hosts/install.sh opencode --global   # ~/.config/opencode/
-./hosts/install.sh hermes              # ~/.hermes/  (then /reload-mcp)
+./hosts/install.sh opencode                         # ./.opencode/ + ./opencode.json
+./hosts/install.sh opencode --global                # ~/.config/opencode/
+./hosts/install.sh hermes                           # $HERMES_HOME or ~/.hermes/
+./hosts/install.sh hermes --profile gunnar          # ~/.hermes/profiles/gunnar/
 ```
 
 | host | MCP config | skills | commands |
 |------|-----------|--------|----------|
 | Claude Code | `.claude-plugin/plugin.json` | `skills/latex-pdf/`, `skills/reference-doc/` | `/mcp-latex:render-pdf`, `/mcp-latex:reference-doc` |
 | opencode | `opencode.json` → `mcp.latex` | `.opencode/skills/latex-pdf/`, `.opencode/skills/reference-doc/` | `/latex-pdf`, `/latex-reference-doc` |
-| hermes | `~/.hermes/config.yaml` → `mcp_servers.latex` | `~/.hermes/skills/latex-pdf/`, `~/.hermes/skills/reference-doc/` | (skills only) |
+| hermes | `$HERMES_HOME/config.yaml` → `mcp_servers.latex` | `$HERMES_HOME/skills/latex-pdf/`, `$HERMES_HOME/skills/reference-doc/` | (skills only) |
 
 If the target config already exists, the installer prints the block to merge
-rather than overwriting it. The templates live in `hosts/opencode/` and
-`hosts/hermes/` if you prefer to wire it up by hand.
+rather than overwriting it. For Hermes, `$HERMES_HOME` is profile-aware: it is
+`~/.hermes` for the default profile and `~/.hermes/profiles/<name>` for a named
+profile (or pass `--home` to override). The templates live in `hosts/opencode/`
+and `hosts/hermes/` if you prefer to wire it up by hand.
 
 ## Prerequisites (native, macOS)
 

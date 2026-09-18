@@ -1,4 +1,5 @@
-# Merge this under the top-level `mcp_servers` key of ~/.hermes/config.yaml.
+# Merge this under the top-level `mcp_servers` key of $HERMES_HOME/config.yaml
+# (default profile: ~/.hermes/config.yaml; named profile: ~/.hermes/profiles/NAME/config.yaml).
 # `hermes mcp add` can do it interactively; this is the equivalent literal form.
 mcp_servers:
   latex:
