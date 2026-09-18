@@ -529,14 +529,16 @@ const TLMGR_HINT =
 
 const server = new McpServer({ name: "mcp-latex", version: SERVER_VERSION });
 
-server.tool(
+server.registerTool(
   "render_markdown_to_pdf",
-  "Render a Markdown or Org document to a nicely-styled PDF using pandoc + " +
-    "xelatex. Styling comes from a `preset` named '<layout>-<type>' (e.g. " +
-    "'ista-report', 'eisvogel-newspaper'); call with an invalid preset to get " +
-    "the list of valid ones. Runs natively (macOS fonts, can open in Skim) or " +
-    "in a Docker image (portable/reproducible).",
   {
+    description:
+      "Render a Markdown or Org document to a nicely-styled PDF using pandoc + " +
+      "xelatex. Styling comes from a `preset` named '<layout>-<type>' (e.g. " +
+      "'ista-report', 'eisvogel-newspaper'); call with an invalid preset to get " +
+      "the list of valid ones. Runs natively (macOS fonts, can open in Skim) or " +
+      "in a Docker image (portable/reproducible).",
+    inputSchema: z.strictObject({
     input_path: z
       .string()
       .optional()
@@ -712,6 +714,7 @@ server.tool(
         "Open the rendered PDF in this macOS app on success, or 'none'. " +
           "Works with either engine since the PDF lands on the host.",
       ),
+    }),
   },
   async (args) => {
     const {
